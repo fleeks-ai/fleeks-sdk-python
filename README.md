@@ -2,7 +2,7 @@
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/fleeks-ai/fleeks-sdk-python/main/assets/fleeks-logo.png">
     <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/fleeks-ai/fleeks-sdk-python/main/assets/fleeks-logo.png">
-    <img alt="Fleeks Logo" src="./assets/fleeks-logo.png" width="600"/>
+    <img alt="Fleeks Logo" src="https://raw.githubusercontent.com/fleeks-ai/fleeks-sdk-python/main/assets/fleeks-logo.png" width="600"/>
   </picture>
   
   # Fleeks Python SDK
