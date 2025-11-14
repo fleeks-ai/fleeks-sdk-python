@@ -5,7 +5,7 @@ Matches backend endpoints in app/api/api_v1/endpoints/sdk/workspaces.py
 """
 
 from typing import Dict, Any, List, Optional
-from .models import WorkspaceInfo, WorkspaceHealth
+from .models import WorkspaceInfo, WorkspaceHealth, PreviewURLInfo
 from .exceptions import FleeksAPIError, FleeksResourceNotFoundError
 from .containers import ContainerManager
 from .files import FileManager
@@ -93,6 +93,79 @@ class Workspace:
         """
         response = await self.client.get(f'workspaces/{self.project_id}/health')
         return WorkspaceHealth.from_dict(response)
+    
+    async def get_preview_url(self) -> PreviewURLInfo:
+        """
+        Get preview URL for instant HTTPS access to workspace applications.
+        
+        GET /api/v1/sdk/workspaces/{project_id}/preview-url
+        
+        Preview URLs provide:
+        - Zero-configuration HTTPS access
+        - WebSocket support for real-time features
+        - SSL certificates (auto-renewing)
+        - Global CDN distribution
+        
+        Returns:
+            PreviewURLInfo: Preview URL information including:
+                - project_id: str
+                - preview_url: str (HTTPS URL)
+                - websocket_url: str (WSS URL)
+                - status: str
+                - container_id: str
+        
+        Example:
+            >>> # Get preview URL
+            >>> preview = await workspace.get_preview_url()
+            >>> print(f"🌐 Preview URL: {preview.preview_url}")
+            >>> print(f"🔌 WebSocket: {preview.websocket_url}")
+            >>> 
+            >>> # Start your application
+            >>> await workspace.terminal.execute("python -m http.server 8080")
+            >>> 
+            >>> # Access at: https://preview.fleeks.ai/my-project/
+        
+        Note:
+            Your application must be running in the workspace to be accessible
+            via the preview URL. Common ports: 3000 (React), 8080 (Python),
+            8000 (Django), 4200 (Angular).
+        """
+        response = await self.client.get(f'workspaces/{self.project_id}/preview-url')
+        return PreviewURLInfo.from_dict(response)
+    
+    @property
+    def preview_url(self) -> Optional[str]:
+        """
+        Get cached preview URL from workspace info.
+        
+        Note: This returns cached data from workspace creation.
+              Use get_preview_url() for fresh data and full details.
+        
+        Returns:
+            Optional[str]: Preview URL if available, None otherwise
+        
+        Example:
+            >>> workspace = await client.workspaces.create("my-app", "python")
+            >>> print(f"Preview URL: {workspace.preview_url}")
+        """
+        return self._info.preview_url
+    
+    @property
+    def websocket_url(self) -> Optional[str]:
+        """
+        Get cached WebSocket URL from workspace info.
+        
+        Note: This returns cached data from workspace creation.
+              Use get_preview_url() for fresh data and full details.
+        
+        Returns:
+            Optional[str]: WebSocket URL if available, None otherwise
+        
+        Example:
+            >>> workspace = await client.workspaces.create("my-app", "python")
+            >>> print(f"WebSocket URL: {workspace.websocket_url}")
+        """
+        return self._info.websocket_url
     
     async def delete(self) -> None:
         """

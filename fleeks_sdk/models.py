@@ -60,6 +60,7 @@ class WorkspaceInfo:
     Workspace information - matches backend WorkspaceResponse.
     
     Represents a complete workspace with polyglot container environment.
+    Includes preview URLs for instant HTTPS access to workspace applications.
     """
     project_id: str
     container_id: str
@@ -68,6 +69,8 @@ class WorkspaceInfo:
     created_at: str
     languages: List[str]
     resource_limits: Dict[str, str]
+    preview_url: Optional[str] = None
+    websocket_url: Optional[str] = None
     
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'WorkspaceInfo':
@@ -79,12 +82,14 @@ class WorkspaceInfo:
             status=data['status'],
             created_at=data['created_at'],
             languages=data['languages'],
-            resource_limits=data['resource_limits']
+            resource_limits=data['resource_limits'],
+            preview_url=data.get('preview_url'),
+            websocket_url=data.get('websocket_url')
         )
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dict for serialization"""
-        return {
+        result = {
             'project_id': self.project_id,
             'container_id': self.container_id,
             'template': self.template,
@@ -93,6 +98,11 @@ class WorkspaceInfo:
             'languages': self.languages,
             'resource_limits': self.resource_limits
         }
+        if self.preview_url:
+            result['preview_url'] = self.preview_url
+        if self.websocket_url:
+            result['websocket_url'] = self.websocket_url
+        return result
 
 
 @dataclass
@@ -120,6 +130,41 @@ class WorkspaceHealth:
             last_activity=data['last_activity'],
             uptime_seconds=data['uptime_seconds']
         )
+
+
+@dataclass
+class PreviewURLInfo:
+    """
+    Preview URL information - matches backend preview-url endpoint response.
+    
+    Provides instant HTTPS access to workspace applications with zero configuration.
+    """
+    project_id: str
+    preview_url: str
+    websocket_url: str
+    status: str
+    container_id: str
+    
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'PreviewURLInfo':
+        """Create from API response dict"""
+        return cls(
+            project_id=data['project_id'],
+            preview_url=data['preview_url'],
+            websocket_url=data['websocket_url'],
+            status=data['status'],
+            container_id=data['container_id']
+        )
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dict for serialization"""
+        return {
+            'project_id': self.project_id,
+            'preview_url': self.preview_url,
+            'websocket_url': self.websocket_url,
+            'status': self.status,
+            'container_id': self.container_id
+        }
 
 
 # ============================================================================

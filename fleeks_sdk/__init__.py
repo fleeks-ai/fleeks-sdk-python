@@ -15,7 +15,7 @@ Features:
 - Type hints throughout
 """
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 __author__ = "Fleeks Inc"
 __email__ = "support@fleeks.com"
 
@@ -25,7 +25,7 @@ from .config import Config
 from .auth import APIKeyAuth
 
 # Service managers
-from .workspaces import WorkspaceManager, WorkspaceConfig, WorkspaceInfo
+from .workspaces import WorkspaceManager
 from .agents import AgentManager, AgentConfig, AgentInfo, AgentRole, AgentStatus, AgentHandoffRequest
 from .files import FileManager, FileInfo, FileUploadConfig, FileSearchOptions
 from .terminal import TerminalManager, TerminalConfig, TerminalSession, TerminalExecutionResult
@@ -46,6 +46,9 @@ from .exceptions import (
     FleeksTimeoutError
 )
 
+# Data models - import after service managers
+from .models import WorkspaceInfo, PreviewURLInfo
+
 __all__ = [
     # Core
     "FleeksClient",
@@ -62,8 +65,8 @@ __all__ = [
     "StreamingClient",
     
     # Data models
-    "WorkspaceConfig",
     "WorkspaceInfo",
+    "PreviewURLInfo",
     "AgentConfig",
     "AgentInfo",
     "AgentRole",

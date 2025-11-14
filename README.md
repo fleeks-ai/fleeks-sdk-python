@@ -49,23 +49,38 @@ async def main():
     # Initialize client
     client = FleeksClient(api_key="fleeks_sk_your_key_here")
     
-    # Create workspace with Python
+    # Create workspace with Python - includes instant preview URLs!
     workspace = await client.workspaces.create(
         project_id="my-project",
         template="python"
     )
     
-    # Execute command
-    result = await workspace.terminal.execute("python --version")
-    print(result.stdout)  # Python 3.11.5
+    print(f"🌐 Preview URL: {workspace.preview_url}")
+    print(f"🔌 WebSocket URL: {workspace.websocket_url}")
     
-    # Create and run file
+    # Create a web server
     await workspace.files.create(
-        path="hello.py",
-        content="print('Hello from Fleeks!')"
+        path="app.py",
+        content="""
+from flask import Flask
+app = Flask(__name__)
+
+@app.route('/')
+def home():
+    return 'Hello from Fleeks!'
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=8080)
+"""
     )
-    result = await workspace.terminal.execute("python hello.py")
-    print(result.stdout)  # Hello from Fleeks!
+    
+    # Install Flask and start server
+    await workspace.terminal.execute("pip install flask")
+    await workspace.terminal.execute("python app.py", background=True)
+    
+    # Get preview URL details
+    preview = await workspace.get_preview_url()
+    print(f"🚀 Your app is live at: {preview.preview_url}")
     
     # Use AI agent
     agent = await workspace.agents.execute(
@@ -81,6 +96,36 @@ asyncio.run(main())
 ```
 
 ## 📖 Core Features
+
+### 🌐 Preview URLs (NEW!)
+
+Get instant HTTPS access to your workspace applications with zero configuration:
+
+```python
+# Create workspace - preview URLs included automatically!
+workspace = await client.workspaces.create("my-app", "python")
+
+# Access preview URLs immediately
+print(workspace.preview_url)     # https://preview.fleeks.ai/my-app/
+print(workspace.websocket_url)   # wss://ws.fleeks.ai/my-app/
+
+# Start your Flask/Express/React app
+await workspace.terminal.execute("python app.py", background=True)
+
+# Get detailed preview info
+preview = await workspace.get_preview_url()
+print(f"Status: {preview.status}")
+print(f"Container: {preview.container_id}")
+
+# Your app is now live at: https://preview.fleeks.ai/my-app/
+```
+
+**Features:**
+- ✅ Automatic HTTPS with SSL certificates
+- ✅ WebSocket support for real-time features
+- ✅ Global CDN distribution
+- ✅ Zero configuration required
+- ✅ Works with any framework (Flask, Express, React, Next.js, etc.)
 
 ### Workspaces
 

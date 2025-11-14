@@ -155,6 +155,10 @@ GITHUB_READY_CHECKLIST.md
 *_STATUS.md
 *_INTERNAL.md
 
+# Internal documentation (not for public)
+SDK_CLI_PREVIEW_URL_INTEGRATION.md
+SDK_IMPLEMENTATION_PLAN_VERIFIED.md
+
 # Environment files (security)
 .env.development
 .env.staging
