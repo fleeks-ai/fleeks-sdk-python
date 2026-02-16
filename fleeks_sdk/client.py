@@ -20,6 +20,7 @@ from .files import FileManager
 from .terminal import TerminalManager
 from .containers import ContainerManager
 from .streaming import StreamingClient
+from .embeds import EmbedManager
 
 
 class FleeksClient:
@@ -71,6 +72,7 @@ class FleeksClient:
         self._terminal: Optional[TerminalManager] = None
         self._containers: Optional[ContainerManager] = None
         self._streaming: Optional[StreamingClient] = None
+        self._embeds: Optional[EmbedManager] = None
 
     async def __aenter__(self) -> "FleeksClient":
         """Async context manager entry."""
@@ -124,7 +126,9 @@ class FleeksClient:
         """
         await self._ensure_client()
         
-        url = f"/api/v1/sdk/{endpoint.lstrip('/')}"
+        # Normalize endpoint to have trailing slash (Django/FastAPI convention)
+        normalized_endpoint = endpoint.strip('/')
+        url = f"/api/v1/sdk/{normalized_endpoint}/"
         
         try:
             response = await self._client.request(method, url, **kwargs)
@@ -201,6 +205,20 @@ class FleeksClient:
             kwargs['data'] = data
         return await self._make_request('PUT', endpoint, **kwargs)
 
+    async def patch(
+        self,
+        endpoint: str,
+        data: Optional[Dict[str, Any]] = None,
+        json: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """Make a PATCH request."""
+        kwargs = {}
+        if json is not None:
+            kwargs['json'] = json
+        elif data is not None:
+            kwargs['data'] = data
+        return await self._make_request('PATCH', endpoint, **kwargs)
+
     async def delete(self, endpoint: str) -> Dict[str, Any]:
         """Make a DELETE request."""
         return await self._make_request('DELETE', endpoint)
@@ -255,6 +273,28 @@ class FleeksClient:
         if self._streaming is None:
             self._streaming = StreamingClient(self)
         return self._streaming
+
+    @property
+    def embeds(self) -> EmbedManager:
+        """
+        Access embed management operations.
+        
+        Embeds are embeddable, shareable code environments for:
+        - Interactive documentation
+        - Public demos and tutorials
+        - Educational content
+        
+        Example:
+            >>> embed = await client.embeds.create(
+            ...     name="React Demo",
+            ...     template=EmbedTemplate.REACT,
+            ...     files={"src/App.js": code}
+            ... )
+            >>> print(embed.embed_url)
+        """
+        if self._embeds is None:
+            self._embeds = EmbedManager(self)
+        return self._embeds
 
     async def close(self) -> None:
         """Close the HTTP client and cleanup resources."""

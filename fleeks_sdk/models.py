@@ -213,7 +213,7 @@ class ContainerStats:
     """
     container_id: str
     cpu_percent: float
-    memory_mb: int
+    memory_mb: float
     memory_percent: float
     network_rx_mb: float
     network_tx_mb: float

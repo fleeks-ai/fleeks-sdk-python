@@ -30,7 +30,7 @@ class Config:
             version: SDK version
         """
         self.api_key = api_key or os.getenv('FLEEKS_API_KEY')
-        self.base_url = base_url or os.getenv('FLEEKS_BASE_URL', 'http://localhost:8000')
+        self.base_url = base_url or os.getenv('FLEEKS_BASE_URL', 'https://api.fleeks.ai')
         self.timeout = timeout
         self.max_retries = max_retries
         self.version = version

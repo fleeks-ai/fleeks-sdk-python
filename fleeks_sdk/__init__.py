@@ -11,11 +11,13 @@ Features:
 - File operations
 - Terminal control
 - Container management
+- Embed management for shareable code environments
+- Container lifecycle control (heartbeat, hibernate, keep-alive)
 - Automatic retry and rate limiting
 - Type hints throughout
 """
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 __author__ = "Fleeks Inc"
 __email__ = "support@fleeks.com"
 
@@ -26,11 +28,40 @@ from .auth import APIKeyAuth
 
 # Service managers
 from .workspaces import WorkspaceManager
-from .agents import AgentManager, AgentConfig, AgentInfo, AgentRole, AgentStatus, AgentHandoffRequest
-from .files import FileManager, FileInfo, FileUploadConfig, FileSearchOptions
-from .terminal import TerminalManager, TerminalConfig, TerminalSession, TerminalExecutionResult
-from .containers import ContainerManager, ContainerInfo, ContainerStats, ContainerExecResult
+from .agents import AgentManager
+from .files import FileManager
+from .terminal import TerminalManager
+from .containers import ContainerManager
 from .streaming import StreamingClient
+from .embeds import EmbedManager
+
+# Lifecycle management
+from .lifecycle import (
+    IdleAction,
+    LifecycleState,
+    LifecycleConfig,
+    HeartbeatResponse,
+    TimeoutExtensionResponse,
+    KeepAliveResponse,
+    HibernationResponse,
+    LifecycleStatus,
+    TIER_LIMITS
+)
+
+# Embed types and models
+from .embeds import (
+    EmbedTemplate,
+    DisplayMode,
+    EmbedLayoutPreset,
+    EmbedTheme,
+    EmbedStatus,
+    EmbedSettings,
+    EmbedFile,
+    EmbedInfo,
+    EmbedSession,
+    EmbedAnalytics,
+    Embed
+)
 
 # Exceptions
 from .exceptions import (
@@ -46,8 +77,18 @@ from .exceptions import (
     FleeksTimeoutError
 )
 
-# Data models - import after service managers
-from .models import WorkspaceInfo, PreviewURLInfo
+# Data models
+from .models import (
+    WorkspaceInfo,
+    PreviewURLInfo,
+    AgentType,
+    AgentStatus,
+    AgentExecution,
+    AgentHandoff,
+    AgentStatusInfo,
+    AgentOutput,
+    AgentList
+)
 
 __all__ = [
     # Core
@@ -63,24 +104,42 @@ __all__ = [
     "TerminalManager",
     "ContainerManager",
     "StreamingClient",
+    "EmbedManager",
+    
+    # Lifecycle
+    "IdleAction",
+    "LifecycleState",
+    "LifecycleConfig",
+    "HeartbeatResponse",
+    "TimeoutExtensionResponse",
+    "KeepAliveResponse",
+    "HibernationResponse",
+    "LifecycleStatus",
+    "TIER_LIMITS",
+    
+    # Embeds
+    "EmbedTemplate",
+    "DisplayMode",
+    "EmbedLayoutPreset",
+    "EmbedTheme",
+    "EmbedStatus",
+    "EmbedSettings",
+    "EmbedFile",
+    "EmbedInfo",
+    "EmbedSession",
+    "EmbedAnalytics",
+    "Embed",
     
     # Data models
     "WorkspaceInfo",
     "PreviewURLInfo",
-    "AgentConfig",
-    "AgentInfo",
-    "AgentRole",
+    "AgentType",
     "AgentStatus",
-    "AgentHandoffRequest",
-    "FileInfo",
-    "FileUploadConfig", 
-    "FileSearchOptions",
-    "TerminalConfig",
-    "TerminalSession",
-    "TerminalExecutionResult",
-    "ContainerInfo",
-    "ContainerStats",
-    "ContainerExecResult",
+    "AgentExecution",
+    "AgentHandoff",
+    "AgentStatusInfo",
+    "AgentOutput",
+    "AgentList",
     
     # Exceptions
     "FleeksException",

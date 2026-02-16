@@ -84,7 +84,7 @@ class TerminalManager:
         try:
             response = await self.client._make_request(
                 'POST',
-                '/api/v1/sdk/terminal/execute',
+                'terminal/execute',
                 json=data
             )
             return TerminalJob.from_dict(response)
@@ -136,7 +136,7 @@ class TerminalManager:
         
         response = await self.client._make_request(
             'POST',
-            '/api/v1/sdk/terminal/background',
+            'terminal/background',
             json=data
         )
         return TerminalJob.from_dict(response)
@@ -166,7 +166,7 @@ class TerminalManager:
         try:
             response = await self.client._make_request(
                 'GET',
-                f'/api/v1/sdk/terminal/jobs/{job_id}',
+                f'terminal/jobs/{job_id}',
                 params={'project_id': self.project_id}
             )
             return TerminalJob.from_dict(response)
@@ -202,7 +202,7 @@ class TerminalManager:
         
         response = await self.client._make_request(
             'GET',
-            '/api/v1/sdk/terminal/jobs',
+            'terminal/jobs',
             params=params
         )
         return TerminalJobList.from_dict(response)
@@ -225,7 +225,7 @@ class TerminalManager:
         """
         response = await self.client._make_request(
             'DELETE',
-            f'/api/v1/sdk/terminal/jobs/{job_id}',
+            f'terminal/jobs/{job_id}',
             params={'project_id': self.project_id}
         )
         return response
@@ -258,7 +258,7 @@ class TerminalManager:
         
         response = await self.client._make_request(
             'GET',
-            f'/api/v1/sdk/terminal/jobs/{job_id}/output',
+            f'terminal/jobs/{job_id}/output',
             params=params
         )
         return response

@@ -158,8 +158,16 @@ GITHUB_READY_CHECKLIST.md
 # Internal documentation (not for public)
 SDK_CLI_PREVIEW_URL_INTEGRATION.md
 SDK_IMPLEMENTATION_PLAN_VERIFIED.md
+INFRASTRUCTURE_DEPLOYMENT_GUIDE.md
+PYPI_PUBLISHING_GUIDE.md
+SDK_EMBED_AND_LIFECYCLE_PLAN.md
+
+# Test scripts with API keys (NEVER commit these)
+test_api.py
+test_all_features.py
 
 # Environment files (security)
+.env
 .env.development
 .env.staging
 .env.production

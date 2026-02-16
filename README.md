@@ -9,7 +9,8 @@
   
   **Production-ready Python SDK for the Fleeks AI Development Platform**
   
-  [![Python Version](https://img.shields.io/badge/python-3.8%2B-blue)](https://www.python.org/downloads/)
+  [![Python Version](https://img.shields.io/badge/python-3.9%2B-blue)](https://www.python.org/downloads/)
+  [![PyPI Version](https://img.shields.io/pypi/v/fleeks-sdk)](https://pypi.org/project/fleeks-sdk/)
   [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
   [![GitHub Stars](https://img.shields.io/github/stars/fleeks-ai/fleeks-sdk-python?style=social)](https://github.com/fleeks-ai/fleeks-sdk-python)
   
@@ -30,6 +31,8 @@ Fleeks is a revolutionary AI-powered development platform that provides instant 
 - 💻 **Terminal Control** - Sync/async command execution, background jobs
 - 📦 **Container Management** - Real-time stats, process control
 - 🔄 **Real-time Streaming** - WebSocket file watching and agent streaming
+- 🧩 **Embeds** - Shareable, embeddable code environments
+- ♻️ **Lifecycle Management** - Heartbeat, hibernate, keep-alive
 - ⚡ **Async/Await** - Built for high performance
 - 🔐 **Enterprise Security** - API key auth with scopes
 
@@ -186,11 +189,68 @@ output = await workspace.agents.get_output(agent.agent_id)
 print(f"Files created: {len(output.files_created)}")
 ```
 
+### Embeds
+
+Create shareable, embeddable code environments:
+
+```python
+from fleeks_sdk import EmbedTemplate, EmbedTheme, EmbedLayoutPreset
+
+# Create an embeddable React playground
+embed = await client.embeds.create(
+    name="My React Demo",
+    template=EmbedTemplate.REACT,
+    files={"src/App.js": "export default () => <h1>Hello!</h1>"},
+    theme=EmbedTheme.DARK,
+    layout_preset=EmbedLayoutPreset.SIDE_BY_SIDE,
+    allowed_origins=["*"]
+)
+
+# Get embed code for your site
+print(embed.iframe_html)      # Ready-to-use <iframe> HTML
+print(embed.embed_url)         # https://embed.fleeks.ai/{id}
+print(embed.markdown_embed)    # <FleeksEmbed id="{id}" />
+
+# Monitor usage
+analytics = await embed.get_analytics("30d")
+print(f"Views: {analytics.total_views}, Sessions: {analytics.total_sessions}")
+```
+
+### Lifecycle Management
+
+Control container lifecycle with heartbeats, hibernation, and keep-alive:
+
+```python
+from fleeks_sdk import LifecycleConfig, IdleAction
+
+# Send heartbeat to prevent idle shutdown
+heartbeat = await workspace.containers.heartbeat()
+
+# Extend container timeout
+await workspace.containers.extend_timeout(minutes=60)
+
+# Check lifecycle status
+status = await workspace.containers.get_lifecycle_status()
+print(f"State: {status.state}, Timeout: {status.idle_timeout_minutes}min")
+
+# Hibernate container (Pro+ tier) — saves state, resumes later
+await workspace.containers.hibernate()
+await workspace.containers.wake()
+
+# Keep container alive indefinitely (Enterprise tier)
+await workspace.containers.set_keep_alive(True)
+
+# Use lifecycle presets
+config = LifecycleConfig.development()    # 2hr timeout, hibernate on idle
+config = LifecycleConfig.always_on()      # Never auto-shutdown
+config = LifecycleConfig.agent_task()     # 2hr max, auto-shutdown
+```
+
 ## 📚 Documentation
 
-- **Full Documentation**: See [`SDK_IMPLEMENTATION_PLAN_VERIFIED.md`](SDK_IMPLEMENTATION_PLAN_VERIFIED.md)
 - **Examples**: Check [`examples/complete_examples.py`](examples/complete_examples.py)
 - **API Reference**: All modules are fully documented with docstrings
+- **Changelog**: See [`CHANGELOG.md`](CHANGELOG.md) for version history
 
 ### Running Tests
 

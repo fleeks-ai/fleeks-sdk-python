@@ -77,7 +77,7 @@ class FileManager:
         
         response = await self.client._make_request(
             'POST',
-            f'/api/v1/sdk/files/{self.project_id}',
+            f'files/{self.project_id}',
             json=data
         )
         return FileInfo.from_dict(response)
@@ -115,7 +115,7 @@ class FileManager:
         
         response = await self.client._make_request(
             'GET',
-            f'/api/v1/sdk/files/{self.project_id}',
+            f'files/{self.project_id}',
             params=params
         )
         return DirectoryListing.from_dict(response)
@@ -152,7 +152,7 @@ class FileManager:
         try:
             response = await self.client._make_request(
                 'GET',
-                f'/api/v1/sdk/files/{self.project_id}/content',
+                f'files/{self.project_id}/content',
                 params=params
             )
             return response['content']
@@ -188,7 +188,7 @@ class FileManager:
         
         response = await self.client._make_request(
             'GET',
-            f'/api/v1/sdk/files/{self.project_id}/content',
+            f'files/{self.project_id}/content',
             params=params
         )
         return response['content'].encode('latin1')  # Backend sends base64
@@ -229,7 +229,7 @@ class FileManager:
         
         response = await self.client._make_request(
             'PUT',
-            f'/api/v1/sdk/files/{self.project_id}/content',
+            f'files/{self.project_id}/content',
             json=data
         )
         return FileInfo.from_dict(response)
@@ -254,7 +254,7 @@ class FileManager:
         try:
             await self.client._make_request(
                 'DELETE',
-                f'/api/v1/sdk/files/{self.project_id}/content',
+                f'files/{self.project_id}/content',
                 params=params
             )
         except FleeksAPIError as e:
@@ -293,7 +293,7 @@ class FileManager:
         
         response = await self.client._make_request(
             'POST',
-            f'/api/v1/sdk/files/{self.project_id}/directories',
+            f'files/{self.project_id}/directories',
             json=data
         )
         return FileInfo.from_dict(response)
@@ -346,7 +346,7 @@ class FileManager:
         
         response = await self.client._make_request(
             'POST',
-            f'/api/v1/sdk/files/{self.project_id}/upload',
+            f'files/{self.project_id}/upload',
             data=data,
             files=files
         )
