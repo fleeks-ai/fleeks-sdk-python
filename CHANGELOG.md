@@ -5,6 +5,32 @@ All notable changes to the Fleeks Python SDK will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-02-22
+
+### Added
+- **Deployment Management** (`DeployManager`) - Full deployment lifecycle via SDK
+  - `deploy.create()` - Trigger new deployments to Fleeks Cloud (Cloud Run)
+  - `deploy.status()` - Check deployment progress and health
+  - `deploy.logs()` - Retrieve build/runtime logs
+  - `deploy.stream_logs()` - Stream real-time deployment logs via SSE
+  - `deploy.rollback()` - Rollback to previous Cloud Run revision
+  - `deploy.delete()` - Tear down deployment infrastructure
+  - `deploy.list()` - List all deployments for a project
+- **Deployment Models** - Type-safe response objects
+  - `DeploymentStatusEnum` enum (pending, in_progress, succeeded, failed, cancelled)
+  - `DeployResponse`, `DeployStatus`, `DeployListItem` dataclasses
+- **`WorkspaceInfo.db_project_id`** field for numeric project ID (used by deploy endpoints)
+- **`HibernationResponse.state`** convenience property (alias for `.status`)
+- **Setup & test script** (`scripts/setup_and_test.py`) for first-time onboarding
+
+### Changed
+- **URL normalization** - Client now strips trailing slash (FastAPI convention) instead of adding one
+- **Rate-limit errors** now preserve the API `detail` message from the response body
+- Updated `__init__.py` exports with all new deployment types
+
+### Security
+- Added `debug_deploy.py` to `.gitignore` to prevent credential leakage
+
 ## [0.3.0] - 2026-02-16
 
 ### Added

@@ -17,7 +17,7 @@ Features:
 - Type hints throughout
 """
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 __author__ = "Fleeks Inc"
 __email__ = "support@fleeks.com"
 
@@ -34,6 +34,7 @@ from .terminal import TerminalManager
 from .containers import ContainerManager
 from .streaming import StreamingClient
 from .embeds import EmbedManager
+from .deploy import DeployManager
 
 # Lifecycle management
 from .lifecycle import (
@@ -87,7 +88,11 @@ from .models import (
     AgentHandoff,
     AgentStatusInfo,
     AgentOutput,
-    AgentList
+    AgentList,
+    DeploymentStatusEnum,
+    DeployResponse,
+    DeployStatus,
+    DeployListItem,
 )
 
 __all__ = [
@@ -105,6 +110,7 @@ __all__ = [
     "ContainerManager",
     "StreamingClient",
     "EmbedManager",
+    "DeployManager",
     
     # Lifecycle
     "IdleAction",
@@ -140,6 +146,10 @@ __all__ = [
     "AgentStatusInfo",
     "AgentOutput",
     "AgentList",
+    "DeploymentStatusEnum",
+    "DeployResponse",
+    "DeployStatus",
+    "DeployListItem",
     
     # Exceptions
     "FleeksException",

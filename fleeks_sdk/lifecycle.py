@@ -296,6 +296,11 @@ class HibernationResponse:
     action: str
     estimated_resume_seconds: Optional[int]
     message: str
+
+    @property
+    def state(self) -> str:
+        """Alias for status, for convenience."""
+        return self.status
     
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'HibernationResponse':

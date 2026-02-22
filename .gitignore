@@ -178,3 +178,7 @@ test_all_features.py
 !.env.example
 PYPI_PUBLISHING_GUIDE.md
 INFRASTRUCTURE_DEPLOYMENT_GUIDE.md
+FLEEKS_TYPESCRIPT_SDK_GUIDE.md
+
+# Debug scripts with credentials (NEVER commit)
+debug_deploy.py

@@ -71,6 +71,7 @@ class WorkspaceInfo:
     resource_limits: Dict[str, str]
     preview_url: Optional[str] = None
     websocket_url: Optional[str] = None
+    db_project_id: Optional[int] = None
     
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'WorkspaceInfo':
@@ -84,7 +85,8 @@ class WorkspaceInfo:
             languages=data['languages'],
             resource_limits=data['resource_limits'],
             preview_url=data.get('preview_url'),
-            websocket_url=data.get('websocket_url')
+            websocket_url=data.get('websocket_url'),
+            db_project_id=data.get('db_project_id'),
         )
     
     def to_dict(self) -> Dict[str, Any]:
@@ -102,6 +104,8 @@ class WorkspaceInfo:
             result['preview_url'] = self.preview_url
         if self.websocket_url:
             result['websocket_url'] = self.websocket_url
+        if self.db_project_id is not None:
+            result['db_project_id'] = self.db_project_id
         return result
 
 
@@ -669,3 +673,116 @@ class UsageInfo:
     def request_cost_dollars(self) -> float:
         """Get request cost in dollars"""
         return self.request_cost_cents / 100.0
+
+
+# ============================================================================
+# DEPLOYMENT MODELS
+# ============================================================================
+
+class DeploymentStatusEnum(str, Enum):
+    """Deployment status values — matches backend DeploymentStatus."""
+    PENDING = "pending"
+    IN_PROGRESS = "in_progress"
+    SUCCEEDED = "succeeded"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
+
+@dataclass
+class DeployResponse:
+    """
+    Response from POST /sdk/deploy — matches backend DeployResponse.
+    """
+    deployment_id: int
+    project_id: Any  # int or str depending on backend version
+    status: str
+    message: str
+    url: Optional[str] = None
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'DeployResponse':
+        """Create from API response dict"""
+        return cls(
+            deployment_id=data['deployment_id'],
+            project_id=data['project_id'],
+            status=data['status'],
+            message=data.get('message', ''),
+            url=data.get('url'),
+        )
+
+
+@dataclass
+class DeployStatus:
+    """
+    Deployment status details — matches backend DeployStatusResponse.
+    """
+    deployment_id: int
+    project_id: Any  # int or str depending on backend version
+    status: str
+    url: Optional[str] = None
+    started_at: Optional[str] = None
+    completed_at: Optional[str] = None
+    error_message: Optional[str] = None
+    health_status: Optional[str] = None
+    framework: Optional[str] = None
+    duration_seconds: Optional[float] = None
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'DeployStatus':
+        """Create from API response dict"""
+        return cls(
+            deployment_id=data['deployment_id'],
+            project_id=data['project_id'],
+            status=data['status'],
+            url=data.get('url'),
+            started_at=data.get('started_at'),
+            completed_at=data.get('completed_at'),
+            error_message=data.get('error_message'),
+            health_status=data.get('health_status'),
+            framework=data.get('framework'),
+            duration_seconds=data.get('duration_seconds'),
+        )
+
+    @property
+    def is_running(self) -> bool:
+        """Check if deployment is still in progress"""
+        return self.status in ("pending", "in_progress")
+
+    @property
+    def is_succeeded(self) -> bool:
+        """Check if deployment succeeded"""
+        return self.status == "succeeded"
+
+    @property
+    def is_failed(self) -> bool:
+        """Check if deployment failed"""
+        return self.status == "failed"
+
+
+@dataclass
+class DeployListItem:
+    """
+    Single item in a deployment list — matches backend list response.
+    """
+    deployment_id: int
+    project_id: Any  # int or str depending on backend version
+    deployment_number: int
+    environment: str
+    status: str
+    url: Optional[str] = None
+    created_at: Optional[str] = None
+    health_status: Optional[str] = None
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'DeployListItem':
+        """Create from API response dict"""
+        return cls(
+            deployment_id=data['deployment_id'],
+            project_id=data['project_id'],
+            deployment_number=data.get('deployment_number', 0),
+            environment=data.get('environment', 'production'),
+            status=data['status'],
+            url=data.get('url'),
+            created_at=data.get('created_at'),
+            health_status=data.get('health_status'),
+        )

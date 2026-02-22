@@ -21,6 +21,7 @@ from .terminal import TerminalManager
 from .containers import ContainerManager
 from .streaming import StreamingClient
 from .embeds import EmbedManager
+from .deploy import DeployManager
 
 
 class FleeksClient:
@@ -73,6 +74,7 @@ class FleeksClient:
         self._containers: Optional[ContainerManager] = None
         self._streaming: Optional[StreamingClient] = None
         self._embeds: Optional[EmbedManager] = None
+        self._deploy: Optional[DeployManager] = None
 
     async def __aenter__(self) -> "FleeksClient":
         """Async context manager entry."""
@@ -126,9 +128,9 @@ class FleeksClient:
         """
         await self._ensure_client()
         
-        # Normalize endpoint to have trailing slash (Django/FastAPI convention)
+        # Normalize endpoint — no trailing slash (FastAPI convention)
         normalized_endpoint = endpoint.strip('/')
-        url = f"/api/v1/sdk/{normalized_endpoint}/"
+        url = f"/api/v1/sdk/{normalized_endpoint}"
         
         try:
             response = await self._client.request(method, url, **kwargs)
@@ -136,8 +138,16 @@ class FleeksClient:
             # Handle rate limiting
             if response.status_code == 429:
                 retry_after = response.headers.get('Retry-After', '60')
+                # Preserve actual error detail from the API response
+                detail = None
+                try:
+                    body = response.json()
+                    detail = body.get('detail')
+                except Exception:
+                    pass
+                msg = detail or f"Rate limit exceeded. Retry after {retry_after} seconds."
                 raise FleeksRateLimitError(
-                    f"Rate limit exceeded. Retry after {retry_after} seconds.",
+                    msg,
                     retry_after=int(retry_after)
                 )
             
@@ -295,6 +305,29 @@ class FleeksClient:
         if self._embeds is None:
             self._embeds = EmbedManager(self)
         return self._embeds
+
+    @property
+    def deploy(self) -> DeployManager:
+        """
+        Access deployment management operations.
+        
+        Deploy projects to Fleeks Cloud infrastructure:
+        - Create new deployments
+        - Check deployment status
+        - View build logs
+        - Rollback to previous revisions
+        - Delete deployments
+        
+        Example:
+            >>> result = await client.deploy.create(
+            ...     project_id=42,
+            ...     environment="production",
+            ... )
+            >>> print(result.url)
+        """
+        if self._deploy is None:
+            self._deploy = DeployManager(self)
+        return self._deploy
 
     async def close(self) -> None:
         """Close the HTTP client and cleanup resources."""
