@@ -137,7 +137,8 @@ class AgentManager:
         local_context: Optional[Dict[str, Any]] = None,
         workspace_snapshot: Optional[Dict[str, Any]] = None,
         conversation_history: Optional[List[Dict[str, str]]] = None,
-        agent_type: AgentType = AgentType.AUTO
+        agent_type: AgentType = AgentType.AUTO,
+        skills: Optional[List[str]] = None
     ) -> AgentHandoff:
         """
         CLI-to-cloud agent handoff (REVOLUTIONARY FEATURE!).
@@ -231,6 +232,8 @@ class AgentManager:
             data['workspace_snapshot'] = workspace_snapshot
         if conversation_history:
             data['conversation_history'] = conversation_history
+        if skills:
+            data['skills'] = skills
         
         response = await self.client.post('agents/handoff', json=data)
         return AgentHandoff.from_dict(response)
@@ -388,27 +391,34 @@ class AgentManager:
         response = await self.client.get('agents', params=params)
         return AgentList.from_dict(response)
     
-    async def stop(self, agent_id: str) -> None:
+    async def stop(self, agent_id: str) -> 'AgentStopResponse':
         """
         Stop running agent.
         
-        DELETE /api/v1/sdk/agents/{agent_id}
+        POST /api/v1/sdk/agents/{agent_id}/stop
         
-        Gracefully stops agent execution. Agent can be checked later
-        for partial results.
+        Gracefully stops agent execution. Clears the agent-active flag,
+        removes the project index, and updates the handoff record.
+        Agent can be checked later for partial results.
         
         Args:
             agent_id: Agent identifier
+        
+        Returns:
+            AgentStopResponse: Stop confirmation with status
         
         Raises:
             FleeksResourceNotFoundError: If agent not found
         
         Example:
             >>> # Stop long-running agent
-            >>> await workspace.agents.stop(agent.agent_id)
+            >>> result = await workspace.agents.stop(agent.agent_id)
+            >>> print(f"Status: {result.status}")
             >>> 
             >>> # Check what it completed
             >>> output = await workspace.agents.get_output(agent.agent_id)
             >>> print(f"Completed {output.iterations_completed} iterations")
         """
-        await self.client.delete(f'agents/{agent_id}')
+        from .models import AgentStopResponse
+        response = await self.client.post(f'agents/{agent_id}/stop')
+        return AgentStopResponse.from_dict(response)

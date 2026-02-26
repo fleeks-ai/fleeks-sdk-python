@@ -511,6 +511,10 @@ class AgentHandoff:
     workspace_synced: bool
     context_preserved: bool
     message: str = "Agent handoff successful"
+    workspace_url: Optional[str] = None
+    container_id: Optional[str] = None
+    detected_types: List[str] = field(default_factory=list)
+    active_skills: List[str] = field(default_factory=list)
     
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'AgentHandoff':
@@ -522,7 +526,35 @@ class AgentHandoff:
             handoff_id=data['handoff_id'],
             workspace_synced=data['workspace_synced'],
             context_preserved=data['context_preserved'],
-            message=data.get('message', 'Agent handoff successful')
+            message=data.get('message', 'Agent handoff successful'),
+            workspace_url=data.get('workspace_url'),
+            container_id=data.get('container_id'),
+            detected_types=data.get('detected_types', []),
+            active_skills=data.get('active_skills', []),
+        )
+
+
+@dataclass
+class AgentStopResponse:
+    """
+    Agent stop response - returned when stopping an agent.
+    
+    The backend clears the agent-active flag, removes project index,
+    and updates the handoff record.
+    """
+    agent_id: str
+    status: str
+    message: str = "Agent stopped"
+    handoff_id: Optional[str] = None
+    
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'AgentStopResponse':
+        """Create from API response dict"""
+        return cls(
+            agent_id=data.get('agent_id', ''),
+            status=data.get('status', 'stopped'),
+            message=data.get('message', 'Agent stopped'),
+            handoff_id=data.get('handoff_id'),
         )
 
 

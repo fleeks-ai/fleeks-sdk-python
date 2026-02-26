@@ -17,7 +17,7 @@ Features:
 - Type hints throughout
 """
 
-__version__ = "0.4.0"
+__version__ = "0.4.1"
 __author__ = "Fleeks Inc"
 __email__ = "support@fleeks.com"
 
@@ -86,6 +86,7 @@ from .models import (
     AgentStatus,
     AgentExecution,
     AgentHandoff,
+    AgentStopResponse,
     AgentStatusInfo,
     AgentOutput,
     AgentList,
@@ -143,6 +144,7 @@ __all__ = [
     "AgentStatus",
     "AgentExecution",
     "AgentHandoff",
+    "AgentStopResponse",
     "AgentStatusInfo",
     "AgentOutput",
     "AgentList",

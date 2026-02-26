@@ -5,6 +5,17 @@ All notable changes to the Fleeks Python SDK will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.1] - 2026-02-27
+
+### Changed
+- **Agent stop endpoint** — `agents.stop()` now uses `POST /agents/{agent_id}/stop` instead of `DELETE /agents/{agent_id}`, matching updated backend behavior
+- **`agents.stop()` return type** — Now returns `AgentStopResponse` (with `agent_id`, `status`, `message`, `handoff_id`) instead of `None`
+- **`agents.handoff()`** — Accepts new optional `skills` parameter to specify agent capabilities
+
+### Added
+- **`AgentStopResponse` model** — Typed response for agent stop operations
+- **`AgentHandoff` new fields** — `workspace_url`, `container_id`, `detected_types`, `active_skills` now included in handoff responses
+
 ## [0.4.0] - 2026-02-22
 
 ### Added
