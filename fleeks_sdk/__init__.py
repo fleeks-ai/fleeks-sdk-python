@@ -1,4 +1,4 @@
-"""
+﻿"""
 Fleeks Python SDK
 
 A comprehensive async Python SDK for interacting with Fleeks services.
@@ -17,7 +17,7 @@ Features:
 - Type hints throughout
 """
 
-__version__ = "0.4.1"
+__version__ = "0.5.0"
 __author__ = "Fleeks Inc"
 __email__ = "support@fleeks.com"
 
@@ -35,6 +35,10 @@ from .containers import ContainerManager
 from .streaming import StreamingClient
 from .embeds import EmbedManager
 from .deploy import DeployManager
+from .schedules import ScheduleManager
+from .channels import ChannelManager
+from .automations import AutomationManager
+from .previews import PreviewManager
 
 # Lifecycle management
 from .lifecycle import (
@@ -90,10 +94,42 @@ from .models import (
     AgentStatusInfo,
     AgentOutput,
     AgentList,
+    SubAgentResult,
+    SubAgentUsage,
     DeploymentStatusEnum,
     DeployResponse,
     DeployStatus,
     DeployListItem,
+    # Schedule / Always-On
+    ScheduleType,
+    DaemonStatus,
+    ProjectType,
+    Schedule,
+    ScheduleList,
+    ScheduleStartResult,
+    DaemonStatusInfo,
+    DaemonLogs,
+    QuotaMetric,
+    QuotaCounter,
+    QuotaUsage,
+    # Channels
+    ChannelType,
+    ChannelTypeInfo,
+    Channel,
+    ChannelList,
+    AuthFlowResult,
+    # Automations
+    TriggerType,
+    Automation,
+    AutomationList,
+    AutomationTestResult,
+    # Preview sessions (new — 2026-03-10)
+    PreviewStatus,
+    PreviewFramework,
+    PreviewSession,
+    PreviewSessionList,
+    PreviewHealth,
+    PreviewDetectResult,
 )
 
 __all__ = [
@@ -112,6 +148,10 @@ __all__ = [
     "StreamingClient",
     "EmbedManager",
     "DeployManager",
+    "ScheduleManager",
+    "ChannelManager",
+    "AutomationManager",
+    "PreviewManager",
     
     # Lifecycle
     "IdleAction",
@@ -148,10 +188,42 @@ __all__ = [
     "AgentStatusInfo",
     "AgentOutput",
     "AgentList",
+    "SubAgentResult",
+    "SubAgentUsage",
     "DeploymentStatusEnum",
     "DeployResponse",
     "DeployStatus",
     "DeployListItem",
+    # Schedule / Always-On
+    "ScheduleType",
+    "DaemonStatus",
+    "ProjectType",
+    "Schedule",
+    "ScheduleList",
+    "ScheduleStartResult",
+    "DaemonStatusInfo",
+    "DaemonLogs",
+    "QuotaMetric",
+    "QuotaCounter",
+    "QuotaUsage",
+    # Channels
+    "ChannelType",
+    "ChannelTypeInfo",
+    "Channel",
+    "ChannelList",
+    "AuthFlowResult",
+    # Automations
+    "TriggerType",
+    "Automation",
+    "AutomationList",
+    "AutomationTestResult",
+    # Preview sessions
+    "PreviewStatus",
+    "PreviewFramework",
+    "PreviewSession",
+    "PreviewSessionList",
+    "PreviewHealth",
+    "PreviewDetectResult",
     
     # Exceptions
     "FleeksException",

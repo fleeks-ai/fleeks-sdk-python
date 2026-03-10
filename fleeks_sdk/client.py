@@ -22,6 +22,10 @@ from .containers import ContainerManager
 from .streaming import StreamingClient
 from .embeds import EmbedManager
 from .deploy import DeployManager
+from .schedules import ScheduleManager
+from .channels import ChannelManager
+from .automations import AutomationManager
+from .previews import PreviewManager
 
 
 class FleeksClient:
@@ -75,6 +79,10 @@ class FleeksClient:
         self._streaming: Optional[StreamingClient] = None
         self._embeds: Optional[EmbedManager] = None
         self._deploy: Optional[DeployManager] = None
+        self._schedules: Optional[ScheduleManager] = None
+        self._channels: Optional[ChannelManager] = None
+        self._automations: Optional[AutomationManager] = None
+        self._previews: Optional[PreviewManager] = None
 
     async def __aenter__(self) -> "FleeksClient":
         """Async context manager entry."""
@@ -328,6 +336,82 @@ class FleeksClient:
         if self._deploy is None:
             self._deploy = DeployManager(self)
         return self._deploy
+
+    @property
+    def schedules(self) -> ScheduleManager:
+        """
+        Access agent schedule management.
+
+        Create and manage always-on agents, cron schedules,
+        daemon lifecycle, and quota tracking.
+
+        Example:
+            >>> sched = await client.schedules.create(
+            ...     name="PR Review Bot",
+            ...     schedule_type="always_on",
+            ...     agent_type="code",
+            ... )
+            >>> await client.schedules.start(sched.schedule_id)
+        """
+        if self._schedules is None:
+            self._schedules = ScheduleManager(self)
+        return self._schedules
+
+    @property
+    def channels(self) -> ChannelManager:
+        """
+        Access messaging channel management.
+
+        Connect agents to Slack, Discord, WhatsApp, Telegram, and more.
+
+        Example:
+            >>> chan = await client.channels.create(
+            ...     schedule_id="sched_abc",
+            ...     channel_type="slack",
+            ...     credentials={"bot_token": "xoxb-..."},
+            ... )
+        """
+        if self._channels is None:
+            self._channels = ChannelManager(self)
+        return self._channels
+
+    @property
+    def automations(self) -> AutomationManager:
+        """
+        Access automation trigger management.
+
+        Create webhook, GitHub, and event-based triggers.
+
+        Example:
+            >>> auto = await client.automations.create(
+            ...     schedule_id="sched_abc",
+            ...     name="Auto-review PRs",
+            ...     trigger_type="github_pr",
+            ... )
+        """
+        if self._automations is None:
+            self._automations = AutomationManager(self)
+        return self._automations
+
+    @property
+    def previews(self) -> PreviewManager:
+        """
+        Access preview session management.
+
+        Start, list, stop, and health-check preview sessions that
+        provide instant HTTPS URLs for running web applications.
+
+        Example:
+            >>> session = await client.previews.start(
+            ...     project_id=42,
+            ...     framework="react_vite",
+            ...     port=5173,
+            ... )
+            >>> print(session.preview_url)
+        """
+        if self._previews is None:
+            self._previews = PreviewManager(self)
+        return self._previews
 
     async def close(self) -> None:
         """Close the HTTP client and cleanup resources."""

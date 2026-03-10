@@ -182,3 +182,6 @@ FLEEKS_TYPESCRIPT_SDK_GUIDE.md
 
 # Debug scripts with credentials (NEVER commit)
 debug_deploy.py
+test_backend_integration.py
+CLI_SDK_ALWAYS_ON_AGENTS_PREVIEW_ENVIRONMENT_INTEGRATION.md
+tests/test_previews.py

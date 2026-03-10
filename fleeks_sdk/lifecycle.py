@@ -168,6 +168,25 @@ class LifecycleConfig:
             keep_alive_on_preview=True
         )
 
+    @classmethod
+    def agent_workspace(cls) -> 'LifecycleConfig':
+        """
+        Preset for always-on agent workspaces.
+
+        Mirrors the backend ``agent_workspace`` project type introduced in
+        the 2026-03-10 update.  Uses keep-alive with generous timeout for
+        autonomous agent operations that provision full workspace
+        environments.
+        """
+        return cls(
+            idle_timeout_minutes=240,
+            idle_action=IdleAction.KEEP_ALIVE,
+            max_duration_hours=None,
+            auto_wake=True,
+            keep_alive_on_preview=True,
+            heartbeat_interval_seconds=120,
+        )
+
 
 @dataclass
 class HeartbeatResponse:

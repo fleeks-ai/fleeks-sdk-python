@@ -1,4 +1,4 @@
-"""
+﻿"""
 Agent management for the Fleeks SDK.
 
 Matches backend endpoints in app/api/api_v1/endpoints/sdk/agents.py
@@ -11,7 +11,8 @@ from .models import (
     AgentHandoff,
     AgentStatusInfo,
     AgentOutput,
-    AgentList
+    AgentList,
+    SubAgentResult,
 )
 from .exceptions import FleeksAPIError, FleeksResourceNotFoundError
 
@@ -332,7 +333,7 @@ class AgentManager:
             ...     print(f"  $ {cmd}")
             >>> 
             >>> if output.has_errors:
-            ...     print(f"\\n⚠️ Errors encountered:")
+            ...     print(f"\\nâš ï¸ Errors encountered:")
             ...     for error in output.errors:
             ...         print(f"  - {error}")
         """
@@ -422,3 +423,94 @@ class AgentManager:
         from .models import AgentStopResponse
         response = await self.client.post(f'agents/{agent_id}/stop')
         return AgentStopResponse.from_dict(response)
+
+    async def run_subagent(
+        self,
+        prompt: str,
+        description: str = "Sub-agent task",
+        *,
+        model: str = "auto",
+        parent_session_id: Optional[str] = None,
+        context: Optional[Dict[str, Any]] = None,
+        max_tokens: int = 16384,
+        max_iterations: int = 1,
+        system: Optional[str] = None,
+        temperature: float = 0.0,
+    ) -> SubAgentResult:
+        """
+        Run a dynamic sub-agent for a focused task.
+
+        POST /api/v1/sdk/agents/subagent
+
+        Spawns a lightweight, isolated LLM call to handle a specific sub-task
+        that the parent agent delegates. This follows the Claude Code-style
+        pattern where the orchestrating agent decides when to delegate.
+
+        No hardcoded roles - the sub-agent prompt defines what it does.
+
+        Args:
+            prompt: The task for the sub-agent (natural language).
+                Example: "Analyze this code and suggest performance improvements"
+            description: Short label for logging/tracking (3-7 words).
+                Example: "Analyze code performance"
+            model: AI model to use ("auto" picks best available).
+            parent_session_id: Optional ID to link with parent agent session.
+            context: Optional context dictionary for the sub-agent.
+                Example: {"file_content": "...", "language": "python"}
+            max_tokens: Max response tokens (default: 16384).
+            max_iterations: Number of iterations (default: 1).
+            system: Optional system prompt override.
+            temperature: Sampling temperature (0.0 = deterministic).
+
+        Returns:
+            SubAgentResult: Result with:
+                - result: The sub-agent response text
+                - description: Task description
+                - subagent_id: Unique sub-agent identifier
+                - parent_session_id: Parent session link
+                - usage: Token usage (input_tokens, output_tokens)
+                - model: Model actually used
+                - iterations_used: Iterations consumed
+                - error: Error message if failed (None on success)
+
+        Raises:
+            FleeksAPIError: If the API call fails
+
+        Example:
+            >>> # Simple sub-agent call
+            >>> result = await workspace.agents.run_subagent(
+            ...     prompt="Explain the purpose of this function",
+            ...     description="Explain function",
+            ... )
+            >>> print(result.result)
+            >>>
+            >>> # Sub-agent with context
+            >>> result = await workspace.agents.run_subagent(
+            ...     prompt="Review this code for security issues",
+            ...     description="Security review",
+            ...     context={"code": open("api.py").read()},
+            ...     model="auto",
+            ... )
+            >>> if result.is_error:
+            ...     print(f"Error: {result.error}")
+            >>> else:
+            ...     print(f"Review ({result.total_tokens} tokens):")
+            ...     print(result.result)
+        """
+        data: Dict[str, Any] = {
+            'prompt': prompt,
+            'description': description,
+            'model': model,
+            'max_tokens': max_tokens,
+            'max_iterations': max_iterations,
+            'temperature': temperature,
+        }
+        if parent_session_id:
+            data['parent_session_id'] = parent_session_id
+        if context:
+            data['context'] = context
+        if system:
+            data['system'] = system
+
+        response = await self.client.post('agents/subagent', json=data)
+        return SubAgentResult.from_dict(response)

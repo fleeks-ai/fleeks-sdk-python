@@ -1,4 +1,4 @@
-"""
+﻿"""
 Data models matching backend Pydantic schemas exactly.
 
 All models correspond 1:1 with backend response schemas from:
@@ -817,4 +817,710 @@ class DeployListItem:
             url=data.get('url'),
             created_at=data.get('created_at'),
             health_status=data.get('health_status'),
+        )
+
+
+# ============================================================================
+# SUB-AGENT MODELS
+# ============================================================================
+
+@dataclass
+class SubAgentUsage:
+    """Token usage statistics for a sub-agent execution."""
+    input_tokens: int = 0
+    output_tokens: int = 0
+    total_tokens: int = 0
+    model: str = ""
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'SubAgentUsage':
+        """Create from API response dict."""
+        return cls(
+            input_tokens=data.get('input_tokens', 0),
+            output_tokens=data.get('output_tokens', 0),
+            total_tokens=data.get('total_tokens', 0),
+            model=data.get('model', ''),
+        )
+
+
+@dataclass
+class SubAgentResult:
+    """
+    Result from a sub-agent execution — matches backend SubAgentResponse.
+
+    Returned by AgentManager.run_subagent().
+    """
+    sub_agent_id: str
+    parent_agent_id: Optional[str]
+    status: str
+    result: str
+    usage: SubAgentUsage
+    execution_time_ms: float = 0.0
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'SubAgentResult':
+        """Create from API response dict."""
+        usage_data = data.get('usage', {})
+        return cls(
+            sub_agent_id=data.get('sub_agent_id', ''),
+            parent_agent_id=data.get('parent_agent_id'),
+            status=data.get('status', 'completed'),
+            result=data.get('result', ''),
+            usage=SubAgentUsage.from_dict(usage_data),
+            execution_time_ms=data.get('execution_time_ms', 0.0),
+        )
+
+
+# ============================================================================
+# SCHEDULE / ALWAYS-ON AGENT MODELS
+# ============================================================================
+
+class ScheduleType(str, Enum):
+    """Schedule trigger types — matches backend ScheduleType enum."""
+    ALWAYS_ON = "always_on"
+    CRON = "cron"
+    INTERVAL = "interval"
+    WEBHOOK = "webhook"
+    EVENT = "event"
+    MANUAL = "manual"
+
+
+class DaemonStatus(str, Enum):
+    """Daemon runtime status — matches backend DaemonStatus enum."""
+    PROVISIONING = "provisioning"
+    STARTING = "starting"
+    RUNNING = "running"
+    PAUSED = "paused"
+    STOPPING = "stopping"
+    STOPPED = "stopped"
+    FAILED = "failed"
+    CRASHED = "crashed"
+
+
+class ProjectType(str, Enum):
+    """Project types — matches backend ProjectType enum (includes new agent_workspace)."""
+    STANDARD = "standard"
+    TEMPLATE = "template"
+    EMBED = "embed"
+    AGENT_WORKSPACE = "agent_workspace"
+
+
+@dataclass
+class Schedule:
+    """
+    Agent schedule — matches backend ScheduleResponse.
+
+    Represents a configured schedule for always-on agents, cron jobs,
+    webhook triggers, or manual executions.
+    """
+    schedule_id: str
+    name: str
+    schedule_type: str
+    status: str
+    agent_type: str
+    created_at: str
+    updated_at: str
+    description: Optional[str] = None
+    project_id: Optional[int] = None
+    cron_expression: Optional[str] = None
+    interval_seconds: Optional[int] = None
+    timezone: str = "UTC"
+    default_task: Optional[str] = None
+    max_iterations: int = 25
+    system_prompt: Optional[str] = None
+    model_override: Optional[str] = None
+    skills: List[str] = field(default_factory=list)
+    auto_detect_skills: bool = True
+    soul_prompt: Optional[str] = None
+    agents_config: Optional[Dict[str, Any]] = None
+    container_class: str = "standard"
+    container_timeout_hours: float = 24.0
+    auto_restart: bool = True
+    max_restarts: int = 5
+    memory_limit_mb: int = 2048
+    cpu_limit_cores: float = 1.0
+    tags: List[str] = field(default_factory=list)
+    last_run_at: Optional[str] = None
+    next_run_at: Optional[str] = None
+    run_count: int = 0
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'Schedule':
+        """Create from API response dict."""
+        return cls(
+            schedule_id=data['schedule_id'],
+            name=data['name'],
+            schedule_type=data.get('schedule_type', 'manual'),
+            status=data.get('status', 'inactive'),
+            agent_type=data.get('agent_type', 'auto'),
+            created_at=data['created_at'],
+            updated_at=data.get('updated_at', data['created_at']),
+            description=data.get('description'),
+            project_id=data.get('project_id'),
+            cron_expression=data.get('cron_expression'),
+            interval_seconds=data.get('interval_seconds'),
+            timezone=data.get('timezone', 'UTC'),
+            default_task=data.get('default_task'),
+            max_iterations=data.get('max_iterations', 25),
+            system_prompt=data.get('system_prompt'),
+            model_override=data.get('model_override'),
+            skills=data.get('skills', []),
+            auto_detect_skills=data.get('auto_detect_skills', True),
+            soul_prompt=data.get('soul_prompt'),
+            agents_config=data.get('agents_config'),
+            container_class=data.get('container_class', 'standard'),
+            container_timeout_hours=data.get('container_timeout_hours', 24.0),
+            auto_restart=data.get('auto_restart', True),
+            max_restarts=data.get('max_restarts', 5),
+            memory_limit_mb=data.get('memory_limit_mb', 2048),
+            cpu_limit_cores=data.get('cpu_limit_cores', 1.0),
+            tags=data.get('tags', []),
+            last_run_at=data.get('last_run_at'),
+            next_run_at=data.get('next_run_at'),
+            run_count=data.get('run_count', 0),
+        )
+
+
+@dataclass
+class ScheduleList:
+    """Paginated list of schedules — matches backend ScheduleListResponse."""
+    schedules: List[Schedule]
+    total: int
+    limit: int
+    offset: int
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'ScheduleList':
+        """Create from API response dict."""
+        schedules = [Schedule.from_dict(s) for s in data.get('schedules', [])]
+        return cls(
+            schedules=schedules,
+            total=data.get('total', len(schedules)),
+            limit=data.get('limit', 50),
+            offset=data.get('offset', 0),
+        )
+
+
+@dataclass
+class ScheduleStartResult:
+    """Response from POST /sdk/schedules/{id}/start — daemon provisioning initiated."""
+    schedule_id: str
+    daemon_id: str
+    status: str
+    message: str
+    project_id: Optional[int] = None
+    workspace_url: Optional[str] = None
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'ScheduleStartResult':
+        """Create from API response dict."""
+        return cls(
+            schedule_id=data.get('schedule_id', ''),
+            daemon_id=data.get('daemon_id', ''),
+            status=data.get('status', 'provisioning'),
+            message=data.get('message', ''),
+            project_id=data.get('project_id'),
+            workspace_url=data.get('workspace_url'),
+        )
+
+
+@dataclass
+class DaemonStatusInfo:
+    """
+    Daemon runtime status — matches backend DaemonStatusResponse.
+
+    Now includes ``project_id`` and ``user_id`` (backend 2026-03-10 update).
+    """
+    schedule_id: str
+    daemon_id: str
+    status: str
+    uptime_seconds: int
+    cpu_percent: float
+    memory_mb: float
+    restart_count: int
+    last_heartbeat: Optional[str] = None
+    started_at: Optional[str] = None
+    error_message: Optional[str] = None
+    project_id: Optional[int] = None
+    user_id: Optional[int] = None
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'DaemonStatusInfo':
+        """Create from API response dict."""
+        return cls(
+            schedule_id=data.get('schedule_id', ''),
+            daemon_id=data.get('daemon_id', ''),
+            status=data.get('status', 'unknown'),
+            uptime_seconds=data.get('uptime_seconds', 0),
+            cpu_percent=data.get('cpu_percent', 0.0),
+            memory_mb=data.get('memory_mb', 0.0),
+            restart_count=data.get('restart_count', 0),
+            last_heartbeat=data.get('last_heartbeat'),
+            started_at=data.get('started_at'),
+            error_message=data.get('error_message'),
+            project_id=data.get('project_id'),
+            user_id=data.get('user_id'),
+        )
+
+    @property
+    def uptime_display(self) -> str:
+        """Human-readable uptime string."""
+        secs = self.uptime_seconds
+        hours, remainder = divmod(secs, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        if hours > 0:
+            return f"{hours}h {minutes}m {seconds}s"
+        if minutes > 0:
+            return f"{minutes}m {seconds}s"
+        return f"{seconds}s"
+
+    @property
+    def is_running(self) -> bool:
+        return self.status == "running"
+
+
+@dataclass
+class DaemonLogs:
+    """Daemon log output — matches backend DaemonLogsResponse."""
+    schedule_id: str
+    daemon_id: str
+    lines: List[str]
+    total_lines: int
+    truncated: bool = False
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'DaemonLogs':
+        """Create from API response dict."""
+        return cls(
+            schedule_id=data.get('schedule_id', ''),
+            daemon_id=data.get('daemon_id', ''),
+            lines=data.get('lines', []),
+            total_lines=data.get('total_lines', 0),
+            truncated=data.get('truncated', False),
+        )
+
+
+@dataclass
+class QuotaMetric:
+    """Single quota metric (e.g. agent-hours used vs limit)."""
+    used: float
+    limit: float
+    unit: str = "hours"
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'QuotaMetric':
+        return cls(
+            used=data.get('used', 0.0),
+            limit=data.get('limit', 0.0),
+            unit=data.get('unit', 'hours'),
+        )
+
+    @property
+    def remaining(self) -> float:
+        return max(0.0, self.limit - self.used)
+
+    @property
+    def percent_used(self) -> float:
+        if self.limit <= 0:
+            return 0.0
+        return min(100.0, (self.used / self.limit) * 100.0)
+
+
+@dataclass
+class QuotaCounter:
+    """Counter-type quota (schedules, concurrent daemons)."""
+    current: int
+    max_allowed: int
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'QuotaCounter':
+        return cls(
+            current=data.get('current', 0),
+            max_allowed=data.get('max_allowed', 0),
+        )
+
+
+@dataclass
+class QuotaUsage:
+    """
+    Agent-hours quota — matches backend QuotaUsageResponse.
+
+    Provides billing-period usage, counters, and warning thresholds.
+    """
+    agent_hours: QuotaMetric
+    schedules: QuotaCounter
+    concurrent_daemons: QuotaCounter
+    billing_period_start: str
+    billing_period_end: str
+    tier: str = "free"
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'QuotaUsage':
+        return cls(
+            agent_hours=QuotaMetric.from_dict(data.get('agent_hours', {})),
+            schedules=QuotaCounter.from_dict(data.get('schedules', {})),
+            concurrent_daemons=QuotaCounter.from_dict(data.get('concurrent_daemons', {})),
+            billing_period_start=data.get('billing_period_start', ''),
+            billing_period_end=data.get('billing_period_end', ''),
+            tier=data.get('tier', 'free'),
+        )
+
+    @property
+    def is_warning(self) -> bool:
+        """True when agent-hours usage exceeds 80%."""
+        return self.agent_hours.percent_used >= 80.0
+
+    @property
+    def is_exceeded(self) -> bool:
+        """True when agent-hours usage exceeds 100%."""
+        return self.agent_hours.percent_used >= 100.0
+
+
+# ============================================================================
+# CHANNEL MODELS
+# ============================================================================
+
+class ChannelType(str, Enum):
+    """Supported messaging channel types."""
+    SLACK = "slack"
+    DISCORD = "discord"
+    WHATSAPP = "whatsapp"
+    TELEGRAM = "telegram"
+    TEAMS = "teams"
+    EMAIL = "email"
+    WEBHOOK = "webhook"
+    SMS = "sms"
+    CUSTOM = "custom"
+
+
+@dataclass
+class ChannelTypeInfo:
+    """Information about a supported channel type."""
+    channel_type: str
+    display_name: str
+    description: str
+    auth_required: bool = True
+    auth_flow: str = "oauth2"
+    supported_features: List[str] = field(default_factory=list)
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'ChannelTypeInfo':
+        return cls(
+            channel_type=data['channel_type'],
+            display_name=data.get('display_name', ''),
+            description=data.get('description', ''),
+            auth_required=data.get('auth_required', True),
+            auth_flow=data.get('auth_flow', 'oauth2'),
+            supported_features=data.get('supported_features', []),
+        )
+
+
+@dataclass
+class Channel:
+    """
+    Messaging channel — matches backend ChannelResponse.
+
+    Represents a connected messaging platform integration.
+    """
+    channel_id: str
+    schedule_id: str
+    channel_type: str
+    name: str
+    status: str
+    created_at: str
+    updated_at: str
+    config: Dict[str, Any] = field(default_factory=dict)
+    last_message_at: Optional[str] = None
+    message_count: int = 0
+    error_message: Optional[str] = None
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'Channel':
+        return cls(
+            channel_id=data['channel_id'],
+            schedule_id=data['schedule_id'],
+            channel_type=data['channel_type'],
+            name=data.get('name', ''),
+            status=data.get('status', 'inactive'),
+            created_at=data['created_at'],
+            updated_at=data.get('updated_at', data['created_at']),
+            config=data.get('config', {}),
+            last_message_at=data.get('last_message_at'),
+            message_count=data.get('message_count', 0),
+            error_message=data.get('error_message'),
+        )
+
+
+@dataclass
+class ChannelList:
+    """Paginated list of channels."""
+    channels: List[Channel]
+    total: int
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'ChannelList':
+        channels = [Channel.from_dict(c) for c in data.get('channels', [])]
+        return cls(
+            channels=channels,
+            total=data.get('total', len(channels)),
+        )
+
+
+@dataclass
+class AuthFlowResult:
+    """Result of initiating an OAuth/auth flow for a channel."""
+    channel_id: str
+    auth_url: str
+    expires_in: int = 600
+    state: str = ""
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'AuthFlowResult':
+        return cls(
+            channel_id=data.get('channel_id', ''),
+            auth_url=data['auth_url'],
+            expires_in=data.get('expires_in', 600),
+            state=data.get('state', ''),
+        )
+
+
+# ============================================================================
+# AUTOMATION MODELS
+# ============================================================================
+
+class TriggerType(str, Enum):
+    """Automation trigger types."""
+    WEBHOOK = "webhook"
+    GITHUB_PR = "github_pr"
+    GITHUB_ISSUE = "github_issue"
+    GITHUB_PUSH = "github_push"
+    SLACK_MESSAGE = "slack_message"
+    CRON = "cron"
+    EVENT = "event"
+    CUSTOM = "custom"
+
+
+@dataclass
+class Automation:
+    """
+    Automation trigger — matches backend AutomationResponse.
+
+    Represents an event-driven trigger that fires agent tasks.
+    """
+    automation_id: str
+    schedule_id: str
+    name: str
+    trigger_type: str
+    status: str
+    created_at: str
+    updated_at: str
+    description: Optional[str] = None
+    trigger_config: Dict[str, Any] = field(default_factory=dict)
+    filter_rules: Dict[str, Any] = field(default_factory=dict)
+    last_triggered_at: Optional[str] = None
+    trigger_count: int = 0
+    error_message: Optional[str] = None
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'Automation':
+        return cls(
+            automation_id=data['automation_id'],
+            schedule_id=data['schedule_id'],
+            name=data['name'],
+            trigger_type=data.get('trigger_type', 'webhook'),
+            status=data.get('status', 'inactive'),
+            created_at=data['created_at'],
+            updated_at=data.get('updated_at', data['created_at']),
+            description=data.get('description'),
+            trigger_config=data.get('trigger_config', {}),
+            filter_rules=data.get('filter_rules', {}),
+            last_triggered_at=data.get('last_triggered_at'),
+            trigger_count=data.get('trigger_count', 0),
+            error_message=data.get('error_message'),
+        )
+
+
+@dataclass
+class AutomationList:
+    """Paginated list of automations."""
+    automations: List[Automation]
+    total: int
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'AutomationList':
+        automations = [Automation.from_dict(a) for a in data.get('automations', [])]
+        return cls(
+            automations=automations,
+            total=data.get('total', len(automations)),
+        )
+
+
+@dataclass
+class AutomationTestResult:
+    """Result of testing an automation trigger."""
+    automation_id: str
+    success: bool
+    trigger_type: str
+    message: str
+    agent_id: Optional[str] = None
+    execution_time_ms: float = 0.0
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'AutomationTestResult':
+        return cls(
+            automation_id=data.get('automation_id', ''),
+            success=data.get('success', False),
+            trigger_type=data.get('trigger_type', ''),
+            message=data.get('message', ''),
+            agent_id=data.get('agent_id'),
+            execution_time_ms=data.get('execution_time_ms', 0.0),
+        )
+
+
+# ============================================================================
+# PREVIEW SESSION MODELS (NEW — backend 2026-03-10)
+# ============================================================================
+
+class PreviewStatus(str, Enum):
+    """Preview session lifecycle status — matches backend PreviewSessionStatus."""
+    STARTING = "starting"
+    RUNNING = "running"
+    STOPPING = "stopping"
+    STOPPED = "stopped"
+    FAILED = "failed"
+    UNHEALTHY = "unhealthy"
+
+
+class PreviewFramework(str, Enum):
+    """Detected or configured web framework for preview sessions."""
+    REACT_VITE = "react_vite"
+    REACT_CRA = "react_cra"
+    NEXTJS = "nextjs"
+    NUXT = "nuxt"
+    VUE_VITE = "vue_vite"
+    SVELTE = "svelte"
+    SVELTEKIT = "sveltekit"
+    ANGULAR = "angular"
+    REMIX = "remix"
+    ASTRO = "astro"
+    FLASK = "flask"
+    DJANGO = "django"
+    FASTAPI = "fastapi"
+    EXPRESS = "express"
+    STATIC = "static"
+    CUSTOM = "custom"
+
+
+@dataclass
+class PreviewSession:
+    """
+    Preview session — matches backend PreviewSessionResponse.
+
+    Represents a running preview environment for a project with
+    instant HTTPS access and live-reload capabilities.
+    """
+    session_id: str
+    project_id: int
+    status: str
+    preview_url: str
+    port: int
+    framework: str
+    created_at: str
+    started_at: Optional[str] = None
+    stopped_at: Optional[str] = None
+    last_activity_at: Optional[str] = None
+    error_message: Optional[str] = None
+    container_id: Optional[str] = None
+    health_check_url: Optional[str] = None
+    websocket_url: Optional[str] = None
+    auto_detected: bool = False
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'PreviewSession':
+        """Create from API response dict."""
+        return cls(
+            session_id=data['session_id'],
+            project_id=data['project_id'],
+            status=data.get('status', 'starting'),
+            preview_url=data.get('preview_url', ''),
+            port=data.get('port', 3000),
+            framework=data.get('framework', 'custom'),
+            created_at=data['created_at'],
+            started_at=data.get('started_at'),
+            stopped_at=data.get('stopped_at'),
+            last_activity_at=data.get('last_activity_at'),
+            error_message=data.get('error_message'),
+            container_id=data.get('container_id'),
+            health_check_url=data.get('health_check_url'),
+            websocket_url=data.get('websocket_url'),
+            auto_detected=data.get('auto_detected', False),
+        )
+
+    @property
+    def is_running(self) -> bool:
+        return self.status == "running"
+
+    @property
+    def is_healthy(self) -> bool:
+        return self.status in ("running",)
+
+
+@dataclass
+class PreviewSessionList:
+    """Paginated list of preview sessions for a project."""
+    sessions: List[PreviewSession]
+    total: int
+    project_id: int
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'PreviewSessionList':
+        sessions = [PreviewSession.from_dict(s) for s in data.get('sessions', [])]
+        return cls(
+            sessions=sessions,
+            total=data.get('total', len(sessions)),
+            project_id=data.get('project_id', 0),
+        )
+
+
+@dataclass
+class PreviewHealth:
+    """Health check result for a preview session."""
+    session_id: str
+    healthy: bool
+    status_code: Optional[int] = None
+    response_time_ms: Optional[float] = None
+    checked_at: str = ""
+    error: Optional[str] = None
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'PreviewHealth':
+        return cls(
+            session_id=data.get('session_id', ''),
+            healthy=data.get('healthy', False),
+            status_code=data.get('status_code'),
+            response_time_ms=data.get('response_time_ms'),
+            checked_at=data.get('checked_at', ''),
+            error=data.get('error'),
+        )
+
+
+@dataclass
+class PreviewDetectResult:
+    """Result of auto-detecting the framework for preview configuration."""
+    project_id: int
+    detected_framework: str
+    confidence: float
+    suggested_port: int
+    suggested_command: str
+    config_files_found: List[str] = field(default_factory=list)
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'PreviewDetectResult':
+        return cls(
+            project_id=data.get('project_id', 0),
+            detected_framework=data.get('detected_framework', 'custom'),
+            confidence=data.get('confidence', 0.0),
+            suggested_port=data.get('suggested_port', 3000),
+            suggested_command=data.get('suggested_command', ''),
+            config_files_found=data.get('config_files_found', []),
         )
