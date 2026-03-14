@@ -17,7 +17,7 @@ Features:
 - Type hints throughout
 """
 
-__version__ = "0.5.0"
+__version__ = "0.5.1"
 __author__ = "Fleeks Inc"
 __email__ = "support@fleeks.com"
 
@@ -100,6 +100,11 @@ from .models import (
     DeployResponse,
     DeployStatus,
     DeployListItem,
+    DeployLogEvent,
+    DeployLogs,
+    ProvisionDbResult,
+    MobileDistributeResult,
+    DesktopDistributeResult,
     # Schedule / Always-On
     ScheduleType,
     DaemonStatus,
@@ -194,6 +199,11 @@ __all__ = [
     "DeployResponse",
     "DeployStatus",
     "DeployListItem",
+    "DeployLogEvent",
+    "DeployLogs",
+    "ProvisionDbResult",
+    "MobileDistributeResult",
+    "DesktopDistributeResult",
     # Schedule / Always-On
     "ScheduleType",
     "DaemonStatus",

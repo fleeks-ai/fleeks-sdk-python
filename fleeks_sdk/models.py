@@ -9,7 +9,7 @@ All models correspond 1:1 with backend response schemas from:
 - app/api/api_v1/endpoints/sdk/agents.py
 """
 
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Union
 from datetime import datetime
 from dataclasses import dataclass, field
 from enum import Enum
@@ -817,6 +817,167 @@ class DeployListItem:
             url=data.get('url'),
             created_at=data.get('created_at'),
             health_status=data.get('health_status'),
+        )
+
+
+@dataclass
+class DeployLogEvent:
+    """
+    A single structured log event from the Redis deploy log stream.
+
+    Present when ``DeployLogs.source == "redis"``.
+    """
+    stage: str
+    percent: int
+    message: str
+    deployment_id: Optional[int] = None
+    project_id: Optional[Any] = None
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'DeployLogEvent':
+        return cls(
+            stage=data.get('stage', ''),
+            percent=data.get('percent', 0),
+            message=data.get('message', ''),
+            deployment_id=data.get('deployment_id'),
+            project_id=data.get('project_id'),
+        )
+
+
+@dataclass
+class DeployLogs:
+    """
+    Build/runtime log payload — matches backend GET /sdk/deploy/{id}/logs.
+
+    ``logs`` is typed as ``Union[str, List[DeployLogEvent]]`` because the
+    backend returns different shapes depending on the log source:
+
+    * ``source == "redis"``        → structured list of DeployLogEvent objects
+    * ``source == "cloud_logging"`` → plain string of Cloud Build log lines
+    * ``source == "stored"``       → plain string from the DB deployment.logs column
+    """
+    deployment_id: int
+    status: str
+    source: str
+    logs: Union[str, List['DeployLogEvent']]
+    error_message: Optional[str] = None
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'DeployLogs':
+        raw_logs = data.get('logs', '')
+        source = data.get('source', 'stored')
+        # When source is "redis" the API returns a list of event dicts
+        if source == 'redis' and isinstance(raw_logs, list):
+            parsed_logs: Union[str, List[DeployLogEvent]] = [
+                DeployLogEvent.from_dict(e) if isinstance(e, dict) else e
+                for e in raw_logs
+            ]
+        else:
+            parsed_logs = raw_logs if isinstance(raw_logs, str) else str(raw_logs)
+        return cls(
+            deployment_id=data['deployment_id'],
+            status=data['status'],
+            source=source,
+            logs=parsed_logs,
+            error_message=data.get('error_message'),
+        )
+
+    @property
+    def is_structured(self) -> bool:
+        """True when ``logs`` is a list of DeployLogEvent objects."""
+        return isinstance(self.logs, list)
+
+    def as_text(self) -> str:
+        """Return a human-readable string regardless of source type."""
+        if isinstance(self.logs, list):
+            return '\n'.join(
+                f"[{e.stage}] {e.percent}%  {e.message}" for e in self.logs
+            )
+        return self.logs or ''
+
+
+@dataclass
+class ProvisionDbResult:
+    """
+    Result from POST /sdk/deploy/provision-db.
+
+    Contains the connection URL and the Cloud Run env-var that was updated.
+    Note: ``host`` ends in ``.svc.cluster.local`` — it is an internal address
+    reachable only from within the GKE VPC (i.e. from your deployed Cloud Run service).
+    """
+    db_type: str
+    connection_url: str
+    env_var_name: str
+    cloud_run_service: str
+    host: str
+    port: int
+    message: str
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'ProvisionDbResult':
+        return cls(
+            db_type=data.get('db_type', ''),
+            connection_url=data.get('connection_url', ''),
+            env_var_name=data.get('env_var_name', ''),
+            cloud_run_service=data.get('cloud_run_service', ''),
+            host=data.get('host', ''),
+            port=int(data.get('port', 0)),
+            message=data.get('message', ''),
+        )
+
+
+@dataclass
+class MobileDistributeResult:
+    """
+    Result from POST /sdk/deploy/distribute/mobile.
+
+    ``download_url`` is a signed GCS URL valid for 7 days.
+    ``qr_code`` is a base64-encoded PNG of the QR code pointing to the same URL.
+    """
+    download_url: str
+    qr_code: str
+    platform: str
+    gcs_path: str
+    expires_in: str
+    filename: str
+    version: str
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'MobileDistributeResult':
+        return cls(
+            download_url=data.get('download_url', ''),
+            qr_code=data.get('qr_code', ''),
+            platform=data.get('platform', ''),
+            gcs_path=data.get('gcs_path', ''),
+            expires_in=data.get('expires_in', '7 days'),
+            filename=data.get('filename', ''),
+            version=data.get('version', ''),
+        )
+
+
+@dataclass
+class DesktopDistributeResult:
+    """
+    Result from POST /sdk/deploy/distribute/desktop.
+
+    ``download_urls`` maps OS name (``windows``, ``macos``, ``linux``) to a
+    signed GCS URL valid for 7 days.  ``landing_page_url`` is the public CDN
+    URL of the generated HTML download page (``https://downloads.fleeks.ai/…``).
+    """
+    download_urls: Dict[str, str]
+    gcs_paths: Dict[str, str]
+    landing_page_url: str
+    expires_in: str
+    version: str
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'DesktopDistributeResult':
+        return cls(
+            download_urls=data.get('download_urls', {}),
+            gcs_paths=data.get('gcs_paths', {}),
+            landing_page_url=data.get('landing_page_url', ''),
+            expires_in=data.get('expires_in', '7 days'),
+            version=data.get('version', ''),
         )
 
 
