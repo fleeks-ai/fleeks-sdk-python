@@ -26,6 +26,11 @@ from .models import (
     ProvisionDbResult,
     MobileDistributeResult,
     DesktopDistributeResult,
+    DiagnoseResult,
+    HealthCheckResult,
+    RuntimeLogsResult,
+    MetricsResult,
+    MultiDeployResult,
 )
 
 
@@ -326,3 +331,181 @@ class DeployManager:
         if isinstance(items, list):
             return [DeployListItem.from_dict(d) for d in items]
         return []
+
+    # ── Diagnose ─────────────────────────────────────────────
+
+    async def diagnose(self, deployment_id: int) -> DiagnoseResult:
+        """
+        Diagnose a failed deployment.
+
+        Pattern-matches against 13 known failure signatures (npm errors,
+        missing modules, OOM kills, port conflicts, etc.) and returns an
+        actionable diagnosis with suggested fixes.
+
+        Args:
+            deployment_id: The deployment ID to diagnose.
+
+        Returns:
+            DiagnoseResult with patterns_found, diagnosis, suggested_fixes.
+        """
+        data = await self._client.post(f"deploy/{deployment_id}/diagnose")
+        return DiagnoseResult.from_dict(data)
+
+    # ── Health ───────────────────────────────────────────────
+
+    async def health(self, deployment_id: int) -> HealthCheckResult:
+        """
+        Check the health of a deployed Cloud Run service.
+
+        Inspects revision conditions, traffic split, and URL reachability.
+        Returns HEALTHY, DEGRADED, or UNHEALTHY.
+
+        Args:
+            deployment_id: The deployment ID to check.
+
+        Returns:
+            HealthCheckResult with status, revisions, traffic, url_check.
+        """
+        data = await self._client.get(f"deploy/{deployment_id}/health")
+        return HealthCheckResult.from_dict(data)
+
+    # ── Runtime Logs ─────────────────────────────────────────
+
+    async def runtime_logs(
+        self,
+        deployment_id: int,
+        severity: str = "DEFAULT",
+        limit: int = 50,
+    ) -> RuntimeLogsResult:
+        """
+        Fetch live runtime (container) logs from Cloud Logging.
+
+        Different from ``logs()`` which returns build-time logs. Use this
+        when the app is deployed but crashing or returning errors.
+
+        Args:
+            deployment_id: The deployment ID.
+            severity: Minimum severity filter (DEFAULT, INFO, WARNING, ERROR, CRITICAL).
+            limit: Maximum number of log entries (1–200, default 50).
+
+        Returns:
+            RuntimeLogsResult with log entries, count, and error_count.
+        """
+        data = await self._client.get(
+            f"deploy/{deployment_id}/runtime-logs",
+            params={"severity": severity, "limit": str(limit)},
+        )
+        return RuntimeLogsResult.from_dict(data)
+
+    # ── Metrics ──────────────────────────────────────────────
+
+    async def metrics(
+        self,
+        deployment_id: int,
+        window_minutes: int = 60,
+    ) -> MetricsResult:
+        """
+        Fetch performance metrics for a deployed Cloud Run service.
+
+        Returns request count, latency percentiles (p50/p95/p99), error
+        rate, and active instance count over the specified time window.
+
+        Args:
+            deployment_id: The deployment ID.
+            window_minutes: Lookback window in minutes (1–1440, default 60).
+
+        Returns:
+            MetricsResult with request_count, error_rate, latency_ms, instance_count.
+        """
+        data = await self._client.get(
+            f"deploy/{deployment_id}/metrics",
+            params={"window_minutes": str(window_minutes)},
+        )
+        return MetricsResult.from_dict(data)
+
+    # ── Multi-Service Deploy ─────────────────────────────────
+
+    async def multi_deploy(
+        self,
+        project_id: Union[int, str],
+        environment: str = "staging",
+        manifest_yaml: Optional[str] = None,
+    ) -> MultiDeployResult:
+        """
+        Deploy a multi-service project from a fleeks.yaml manifest.
+
+        Each service in the manifest gets its own Cloud Run instance with
+        auto-injected service-to-service URLs. If ``manifest_yaml`` is
+        omitted the manifest is read from the project's GCS workspace.
+
+        Tier limits apply: FREE/BASIC=1 service, PRO=3, ULTIMATE=10.
+
+        Args:
+            project_id: The Fleeks project ID.
+            environment: Target environment (default ``"staging"``).
+            manifest_yaml: Optional fleeks.yaml content as a string.
+
+        Returns:
+            MultiDeployResult with group_id, per-service results, and totals.
+        """
+        body: Dict[str, Any] = {
+            "project_id": project_id,
+            "environment": environment,
+        }
+        if manifest_yaml:
+            body["manifest_yaml"] = manifest_yaml
+        data = await self._client.post("deploy/multi", json=body)
+        return MultiDeployResult.from_dict(data)
+
+    # ── Secrets ──────────────────────────────────────────────
+
+    async def set_secrets(
+        self,
+        project_id: Union[int, str],
+        secrets: Dict[str, str],
+        environment: str = "production",
+    ) -> Dict[str, Any]:
+        """
+        Set environment secrets for a project.
+
+        Secrets are stored in GCP Secret Manager and auto-injected into
+        the project's Cloud Run service on the next deploy.
+
+        Args:
+            project_id: The Fleeks project ID.
+            secrets: Dict of key-value pairs to store.
+            environment: Target environment (default ``"production"``).
+
+        Returns:
+            Dict with ``success`` and ``message``.
+        """
+        body: Dict[str, Any] = {
+            "project_id": project_id,
+            "secrets": secrets,
+            "environment": environment,
+        }
+        return await self._client.post("deploy/secrets", json=body)
+
+    async def list_secrets(self, project_id: Union[int, str]) -> Dict[str, Any]:
+        """
+        List secret keys for a project (values are never exposed).
+
+        Args:
+            project_id: The Fleeks project ID.
+
+        Returns:
+            Dict with ``project_id``, ``secrets`` (list of key entries), ``count``.
+        """
+        return await self._client.get(f"deploy/secrets/{project_id}")
+
+    async def delete_secrets(self, project_id: Union[int, str]) -> Dict[str, Any]:
+        """
+        Delete all secrets for a project.
+
+        Args:
+            project_id: The Fleeks project ID.
+
+        Returns:
+            Dict with ``success`` and ``message``.
+        """
+        return await self._client.delete(f"deploy/secrets/{project_id}")

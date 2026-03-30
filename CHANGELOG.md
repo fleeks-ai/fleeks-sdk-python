@@ -5,6 +5,20 @@ All notable changes to the Fleeks Python SDK will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.2] - 2026-03-30
+
+### Added
+- **Deployment Diagnostics** (`deploy.diagnose()`) — Pattern-matches against 13 known failure signatures (npm errors, missing modules, OOM kills, port conflicts, etc.) and returns actionable diagnosis with suggested fixes
+- **Deployment Health Checks** (`deploy.health()`) — Inspect Cloud Run revision conditions, traffic split, and URL reachability; returns HEALTHY, DEGRADED, or UNHEALTHY status
+- **Runtime Logs** (`deploy.runtime_logs()`) — Fetch live container logs from Cloud Logging (distinct from build-time logs), with severity filtering and limit control
+- **Deployment Metrics** (`deploy.metrics()`) — Request count, latency percentiles (p50/p95/p99), error rate, and active instance count over configurable time windows
+- **Multi-Service Deploy** (`deploy.multi_deploy()`) — Deploy multi-service projects from a `fleeks.yaml` manifest with auto-injected service-to-service URLs; tier-aware limits
+- **Secrets Management** — `deploy.set_secrets()`, `deploy.list_secrets()`, `deploy.delete_secrets()` for GCP Secret Manager integration with auto-injection into Cloud Run
+- **New models** — `DiagnoseResult`, `HealthCheckResult`, `RuntimeLogEntry`, `RuntimeLogsResult`, `LatencyMetrics`, `MetricsResult`, `MultiServiceDeployResult`, `MultiDeployResult`
+
+### Changed
+- **`ProvisionDbResult`** — Expanded with `database_url`, `db_name`, `db_user`, `db_host`, `db_port` fields; Cloud SQL (PostgreSQL) and Memorystore (Redis) support; all fields now have safe defaults
+
 ## [0.4.1] - 2026-02-27
 
 ### Changed

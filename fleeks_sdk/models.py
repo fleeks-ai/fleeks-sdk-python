@@ -901,27 +901,40 @@ class ProvisionDbResult:
     """
     Result from POST /sdk/deploy/provision-db.
 
-    Contains the connection URL and the Cloud Run env-var that was updated.
-    Note: ``host`` ends in ``.svc.cluster.local`` — it is an internal address
-    reachable only from within the GKE VPC (i.e. from your deployed Cloud Run service).
+    For ``postgresql``, the backend provisions on Cloud SQL (``10.18.0.3``).
+    For ``redis``, it returns Memorystore Redis info (``10.17.182.43``).
+    Other engines fall back to the legacy in-cluster provisioner.
+
+    All hosts are internal VPC addresses reachable only from your deployed
+    Cloud Run service (not from the public internet).
     """
-    db_type: str
-    connection_url: str
-    env_var_name: str
-    cloud_run_service: str
-    host: str
-    port: int
-    message: str
+    db_type: str = ""
+    connection_url: str = ""
+    database_url: str = ""
+    env_var_name: str = ""
+    cloud_run_service: str = ""
+    host: str = ""
+    db_name: str = ""
+    db_user: str = ""
+    db_host: str = ""
+    db_port: str = ""
+    port: int = 0
+    message: str = ""
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'ProvisionDbResult':
         return cls(
             db_type=data.get('db_type', ''),
-            connection_url=data.get('connection_url', ''),
+            connection_url=data.get('connection_url', data.get('database_url', '')),
+            database_url=data.get('database_url', data.get('connection_url', '')),
             env_var_name=data.get('env_var_name', ''),
             cloud_run_service=data.get('cloud_run_service', ''),
-            host=data.get('host', ''),
-            port=int(data.get('port', 0)),
+            host=data.get('host', data.get('db_host', '')),
+            db_name=data.get('db_name', ''),
+            db_user=data.get('db_user', ''),
+            db_host=data.get('db_host', data.get('host', '')),
+            db_port=data.get('db_port', ''),
+            port=int(data.get('port', data.get('db_port', 0)) or 0),
             message=data.get('message', ''),
         )
 
@@ -978,6 +991,211 @@ class DesktopDistributeResult:
             landing_page_url=data.get('landing_page_url', ''),
             expires_in=data.get('expires_in', '7 days'),
             version=data.get('version', ''),
+        )
+
+
+@dataclass
+class DiagnoseResult:
+    """
+    Result from POST /sdk/deploy/{id}/diagnose.
+
+    ``patterns_found`` lists the named failure signatures detected (e.g.
+    ``'dependency_not_found'``, ``'out_of_memory'``).  ``diagnosis`` is a
+    human-readable explanation and ``suggested_fixes`` are actionable steps.
+    """
+    deployment_id: int
+    patterns_found: List[str]
+    diagnosis: str
+    suggested_fixes: List[str]
+    auto_fixable: bool = False
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'DiagnoseResult':
+        return cls(
+            deployment_id=data.get('deployment_id', 0),
+            patterns_found=data.get('patterns_found', []),
+            diagnosis=data.get('diagnosis', ''),
+            suggested_fixes=data.get('suggested_fixes', []),
+            auto_fixable=data.get('auto_fixable', False),
+        )
+
+
+@dataclass
+class HealthCheckResult:
+    """
+    Result from GET /sdk/deploy/{id}/health.
+
+    ``status`` is one of ``HEALTHY``, ``DEGRADED``, ``UNHEALTHY``.
+    ``revisions`` and ``traffic`` contain Cloud Run revision/traffic details.
+    ``url_check`` contains HTTP probe results when the service has a URL.
+    """
+    service_name: str
+    url: Optional[str]
+    status: str
+    revisions: List[Dict[str, Any]]
+    traffic: List[Dict[str, Any]]
+    url_check: Optional[Dict[str, Any]]
+    message: str
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'HealthCheckResult':
+        return cls(
+            service_name=data.get('service_name', ''),
+            url=data.get('url'),
+            status=data.get('status', 'UNHEALTHY'),
+            revisions=data.get('revisions', []),
+            traffic=data.get('traffic', []),
+            url_check=data.get('url_check'),
+            message=data.get('message', ''),
+        )
+
+    @property
+    def is_healthy(self) -> bool:
+        return self.status == "HEALTHY"
+
+
+@dataclass
+class RuntimeLogEntry:
+    """A single runtime log entry from Cloud Logging."""
+    timestamp: Optional[str]
+    severity: str
+    message: str
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'RuntimeLogEntry':
+        return cls(
+            timestamp=data.get('timestamp'),
+            severity=data.get('severity', 'DEFAULT'),
+            message=data.get('message', ''),
+        )
+
+
+@dataclass
+class RuntimeLogsResult:
+    """
+    Result from GET /sdk/deploy/{id}/runtime-logs.
+
+    Contains live container logs from Cloud Logging — different from the
+    build logs returned by ``deploy.logs()``.  Use when the app is deployed
+    but crashing or returning errors at runtime.
+    """
+    deployment_id: int
+    service_name: str
+    logs: List[RuntimeLogEntry]
+    count: int
+    error_count: int
+    message: str
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'RuntimeLogsResult':
+        entries = [
+            RuntimeLogEntry.from_dict(e) if isinstance(e, dict) else RuntimeLogEntry(None, "DEFAULT", str(e))
+            for e in data.get('logs', [])
+        ]
+        return cls(
+            deployment_id=data.get('deployment_id', 0),
+            service_name=data.get('service_name', ''),
+            logs=entries,
+            count=data.get('count', 0),
+            error_count=data.get('error_count', 0),
+            message=data.get('message', ''),
+        )
+
+    def as_text(self) -> str:
+        """Render logs as newline-separated text."""
+        return "\n".join(
+            f"[{e.severity}] {e.timestamp or ''} {e.message}" for e in self.logs
+        )
+
+
+@dataclass
+class LatencyMetrics:
+    """Latency percentile values in milliseconds."""
+    p50: Optional[float] = None
+    p95: Optional[float] = None
+    p99: Optional[float] = None
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'LatencyMetrics':
+        return cls(
+            p50=data.get('p50'),
+            p95=data.get('p95'),
+            p99=data.get('p99'),
+        )
+
+
+@dataclass
+class MetricsResult:
+    """
+    Result from GET /sdk/deploy/{id}/metrics.
+
+    Contains Cloud Run performance metrics over a configurable time window:
+    request count, error rate, latency percentiles, and instance count.
+    """
+    deployment_id: int
+    service_name: str
+    window_minutes: int
+    request_count: Optional[int]
+    error_rate: Optional[float]
+    latency_ms: Optional[LatencyMetrics]
+    instance_count: Optional[int]
+    message: str
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'MetricsResult':
+        lat = data.get('latency_ms')
+        return cls(
+            deployment_id=data.get('deployment_id', 0),
+            service_name=data.get('service_name', ''),
+            window_minutes=data.get('window_minutes', 60),
+            request_count=data.get('request_count'),
+            error_rate=data.get('error_rate'),
+            latency_ms=LatencyMetrics.from_dict(lat) if isinstance(lat, dict) else None,
+            instance_count=data.get('instance_count'),
+            message=data.get('message', ''),
+        )
+
+
+@dataclass
+class MultiServiceDeployResult:
+    """Single service result inside a multi-service deployment."""
+    deployment_id: int
+    url: Optional[str]
+    status: str
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'MultiServiceDeployResult':
+        return cls(
+            deployment_id=data.get('deployment_id', 0),
+            url=data.get('url'),
+            status=data.get('status', 'unknown'),
+        )
+
+
+@dataclass
+class MultiDeployResult:
+    """
+    Result from POST /sdk/deploy/multi.
+
+    ``services`` maps service name → individual deployment result.
+    """
+    group_id: str
+    total: int
+    deployed: int
+    services: Dict[str, MultiServiceDeployResult]
+    message: str
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'MultiDeployResult':
+        svcs = {}
+        for name, info in data.get('services', {}).items():
+            svcs[name] = MultiServiceDeployResult.from_dict(info) if isinstance(info, dict) else MultiServiceDeployResult(0, None, str(info))
+        return cls(
+            group_id=data.get('group_id', ''),
+            total=data.get('total', 0),
+            deployed=data.get('deployed', 0),
+            services=svcs,
+            message=data.get('message', ''),
         )
 
 
