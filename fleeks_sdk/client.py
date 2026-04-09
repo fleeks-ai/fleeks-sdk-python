@@ -26,6 +26,8 @@ from .schedules import ScheduleManager
 from .channels import ChannelManager
 from .automations import AutomationManager
 from .previews import PreviewManager
+from .voice import VoiceManager
+from .ai_keys import AIKeysManager
 
 
 class FleeksClient:
@@ -83,6 +85,8 @@ class FleeksClient:
         self._channels: Optional[ChannelManager] = None
         self._automations: Optional[AutomationManager] = None
         self._previews: Optional[PreviewManager] = None
+        self._voice: Optional[VoiceManager] = None
+        self._ai_keys: Optional[AIKeysManager] = None
 
     async def __aenter__(self) -> "FleeksClient":
         """Async context manager entry."""
@@ -138,7 +142,8 @@ class FleeksClient:
         
         # Normalize endpoint — no trailing slash (FastAPI convention)
         normalized_endpoint = endpoint.strip('/')
-        url = f"/api/v1/sdk/{normalized_endpoint}"
+        prefix = kwargs.pop('_url_prefix', '/api/v1/sdk')
+        url = f"{prefix}/{normalized_endpoint}"
         
         try:
             response = await self._client.request(method, url, **kwargs)
@@ -413,8 +418,35 @@ class FleeksClient:
             self._previews = PreviewManager(self)
         return self._previews
 
+    @property
+    def voice(self) -> VoiceManager:
+        """
+        Access voice session management.
+
+        Start real-time voice conversations with Fleeks AI agents
+        powered by Gemini 3.1 Flash Live.
+
+        Example:
+            >>> async with client.voice.session("agt_abc") as vs:
+            ...     await vs.send_audio(audio_b64)
+            ...     async for event in vs.events():
+            ...         print(event)
+        """
+        if self._voice is None:
+            self._voice = VoiceManager(self)
+        return self._voice
+
+    @property
+    def ai_keys(self) -> AIKeysManager:
+        """Access AI provider key management (BYOK)."""
+        if self._ai_keys is None:
+            self._ai_keys = AIKeysManager(self)
+        return self._ai_keys
+
     async def close(self) -> None:
         """Close the HTTP client and cleanup resources."""
+        if self._voice is not None:
+            await self._voice.disconnect()
         if self._client is not None:
             await self._client.aclose()
             self._client = None

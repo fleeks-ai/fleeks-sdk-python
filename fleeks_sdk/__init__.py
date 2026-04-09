@@ -40,6 +40,12 @@ from .channels import ChannelManager
 from .automations import AutomationManager
 from .previews import PreviewManager
 
+# AI Keys (BYOK)
+from .ai_keys import AIKeysManager
+
+# Voice
+from .voice import VoiceManager, VoiceSession
+
 # Lifecycle management
 from .lifecycle import (
     IdleAction,
@@ -143,6 +149,16 @@ from .models import (
     PreviewSessionList,
     PreviewHealth,
     PreviewDetectResult,
+    # Voice
+    VoiceSessionState,
+    VoiceEventType,
+    VoiceSessionConfig,
+    VoiceSessionInfo,
+    VoiceAudioResponse,
+    VoiceTranscript,
+    VoiceToolExecution,
+    VoiceUsage,
+    VoiceEvent,
 )
 
 __all__ = [
@@ -165,6 +181,8 @@ __all__ = [
     "ChannelManager",
     "AutomationManager",
     "PreviewManager",
+    "VoiceManager",
+    "AIKeysManager",
     
     # Lifecycle
     "IdleAction",
@@ -250,6 +268,18 @@ __all__ = [
     "PreviewSessionList",
     "PreviewHealth",
     "PreviewDetectResult",
+    # Voice
+    "VoiceManager",
+    "VoiceSession",
+    "VoiceSessionState",
+    "VoiceEventType",
+    "VoiceSessionConfig",
+    "VoiceSessionInfo",
+    "VoiceAudioResponse",
+    "VoiceTranscript",
+    "VoiceToolExecution",
+    "VoiceUsage",
+    "VoiceEvent",
     
     # Exceptions
     "FleeksException",

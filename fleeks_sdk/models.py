@@ -1903,3 +1903,127 @@ class PreviewDetectResult:
             suggested_command=data.get('suggested_command', ''),
             config_files_found=data.get('config_files_found', []),
         )
+
+
+# ============================================================================
+# VOICE MODELS
+# ============================================================================
+
+class VoiceSessionState(str, Enum):
+    """Voice session lifecycle states."""
+    CREATED = "created"
+    CONNECTING = "connecting"
+    CONNECTED = "connected"
+    STREAMING = "streaming"
+    RECONNECTING = "reconnecting"
+    CLOSING = "closing"
+    CLOSED = "closed"
+    ERROR = "error"
+
+
+class VoiceEventType(str, Enum):
+    """Types of voice events received from the backend."""
+    SESSION_STARTED = "session_started"
+    AUDIO_RESPONSE = "audio_response"
+    INPUT_TRANSCRIPT = "input_transcript"
+    OUTPUT_TRANSCRIPT = "output_transcript"
+    TOOL_START = "tool_start"
+    TOOL_RESULT = "tool_result"
+    INTERRUPTED = "interrupted"
+    STATE_CHANGED = "state_changed"
+    ERROR = "error"
+    SESSION_ENDED = "session_ended"
+    USAGE = "usage"
+
+
+@dataclass
+class VoiceSessionConfig:
+    """Configuration for starting a voice session."""
+    agent_session_id: str
+    voice_name: str = "Kore"
+    language: str = "en"
+    model: str = "gemini-3.1-flash-live-preview"
+    thinking_level: str = "minimal"
+    enable_tools: bool = True
+    workspace_id: Optional[str] = None
+    project_id: Optional[str] = None
+    system_instruction: Optional[str] = None
+
+
+@dataclass
+class VoiceSessionInfo:
+    """Voice session information returned by the backend."""
+    session_id: str
+    state: str
+    model: str
+    voice_name: str
+    created_at: str
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'VoiceSessionInfo':
+        return cls(
+            session_id=data.get('session_id', ''),
+            state=data.get('state', 'active'),
+            model=data.get('model', ''),
+            voice_name=data.get('voice_name', ''),
+            created_at=data.get('created_at', ''),
+        )
+
+
+@dataclass
+class VoiceAudioResponse:
+    """Audio chunk received from the agent."""
+    audio: str       # base64-encoded PCM 24kHz mono LE
+    mime_type: str    # "audio/pcm;rate=24000"
+
+
+@dataclass
+class VoiceTranscript:
+    """Live transcript of speech (user or agent)."""
+    text: str
+    role: str   # "user" or "agent"
+
+
+@dataclass
+class VoiceToolExecution:
+    """Tool execution event during a voice conversation."""
+    call_id: str
+    function_name: str
+    arguments: Dict[str, Any]
+    status: str = "running"                 # "running", "completed", "failed"
+    result: Optional[Dict[str, Any]] = None
+    execution_time: Optional[float] = None  # seconds
+    success: Optional[bool] = None
+
+
+@dataclass
+class VoiceUsage:
+    """Token usage update for a voice session."""
+    input_tokens: int = 0
+    output_tokens: int = 0
+
+
+@dataclass
+class VoiceEvent:
+    """
+    A single voice event from the backend.
+
+    Use the `type` field to determine which optional fields are populated:
+    - AUDIO_RESPONSE → audio_response
+    - INPUT_TRANSCRIPT / OUTPUT_TRANSCRIPT → transcript
+    - TOOL_START / TOOL_RESULT → tool_execution
+    - ERROR → error
+    - STATE_CHANGED → old_state, new_state
+    - USAGE → usage
+    - SESSION_STARTED → session_info
+    """
+    type: VoiceEventType
+    session_id: str = ""
+    audio_response: Optional[VoiceAudioResponse] = None
+    transcript: Optional[VoiceTranscript] = None
+    tool_execution: Optional[VoiceToolExecution] = None
+    session_info: Optional[VoiceSessionInfo] = None
+    usage: Optional[VoiceUsage] = None
+    error: Optional[str] = None
+    old_state: Optional[str] = None
+    new_state: Optional[str] = None
