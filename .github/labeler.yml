@@ -1,0 +1,40 @@
+# SDK source
+sdk:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'fleeks_sdk/**'
+
+# Tests
+tests:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'tests/**'
+      - 'test_*.py'
+
+# Examples
+examples:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'examples/**'
+
+# Build / Packaging
+build:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'pyproject.toml'
+      - 'setup.py'
+      - 'requirements.txt'
+      - 'scripts/**'
+
+# Infrastructure
+infrastructure:
+  - changed-files:
+    - any-glob-to-any-file:
+      - '.github/**'
+
+# Documentation
+documentation:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'docs/**'
+      - '*.md'

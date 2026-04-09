@@ -1,0 +1,20 @@
+# fleeks-sdk-python CODEOWNERS
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default — SDK team owns everything
+* @fleeks-ai/sdk-team
+
+# Core SDK source
+/fleeks_sdk/ @fleeks-ai/sdk-team @fleeks-ai/backend-leads
+
+# Build / packaging
+/pyproject.toml @fleeks-ai/sdk-team @fleeks-ai/backend-leads
+/setup.py @fleeks-ai/sdk-team
+/requirements.txt @fleeks-ai/sdk-team
+
+# CI/CD and release
+/.github/ @fleeks-ai/devops-team @fleeks-ai/sdk-team
+/scripts/ @fleeks-ai/devops-team @fleeks-ai/sdk-team
+
+# Tests
+/tests/ @fleeks-ai/sdk-team

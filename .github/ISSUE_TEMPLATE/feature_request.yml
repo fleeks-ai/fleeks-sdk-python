@@ -1,0 +1,47 @@
+name: ✨ Feature Request
+description: Suggest a feature or improvement for the Fleeks Python SDK
+labels: ["enhancement", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for your feature suggestion!
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - "Client / Authentication"
+        - "Environments API"
+        - "Files API"
+        - "Code Execution API"
+        - "AI Agent Integration"
+        - "Developer Experience"
+        - "Documentation"
+        - "Other"
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Statement
+      description: What problem does this feature solve?
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: How would the API look? Provide example code if possible.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+    validations:
+      required: false
