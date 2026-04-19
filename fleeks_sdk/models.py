@@ -19,13 +19,19 @@ from enum import Enum
 # ENUMS
 # ============================================================================
 
-class AgentType(str, Enum):
-    """Agent types - matches backend AgentExecuteRequest"""
-    AUTO = "auto"
-    CODE = "code"
-    RESEARCH = "research"
-    DEBUG = "debug"
-    TEST = "test"
+class AgentMode(str, Enum):
+    """Agent execution modes — matches CLI plan/agent/ask.
+    
+    There is a single unified agent; the mode controls how it interacts
+    with the user during execution.
+    """
+    PLAN = "plan"      # Plan-first — agent plans before executing step-by-step
+    AGENT = "agent"    # Autonomous — executes all tools without confirmation
+    ASK = "ask"        # Confirm — asks for confirmation before every tool call
+
+
+# Backward-compat alias (deprecated — will be removed in 1.0)
+AgentType = AgentMode
 
 
 class JobStatus(str, Enum):

@@ -17,7 +17,7 @@ Features:
 - Type hints throughout
 """
 
-__version__ = "0.5.2"
+__version__ = "0.6.0"
 __author__ = "Fleeks Inc"
 __email__ = "support@fleeks.com"
 
@@ -92,7 +92,8 @@ from .exceptions import (
 from .models import (
     WorkspaceInfo,
     PreviewURLInfo,
-    AgentType,
+    AgentMode,
+    AgentType,  # backward-compat alias for AgentMode
     AgentStatus,
     AgentExecution,
     AgentHandoff,
@@ -211,7 +212,8 @@ __all__ = [
     # Data models
     "WorkspaceInfo",
     "PreviewURLInfo",
-    "AgentType",
+    "AgentMode",
+    "AgentType",  # backward-compat alias
     "AgentStatus",
     "AgentExecution",
     "AgentHandoff",

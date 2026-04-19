@@ -6,7 +6,7 @@ Matches backend endpoints in app/api/api_v1/endpoints/sdk/agents.py
 
 from typing import Dict, Any, List, Optional
 from .models import (
-    AgentType,
+    AgentMode,
     AgentExecution,
     AgentHandoff,
     AgentStatusInfo,
@@ -22,17 +22,22 @@ class AgentManager:
     Manager for agent operations within a workspace.
     
     Handles:
-    - Agent execution (auto, code, research, debug, test)
-    - CLI-to-cloud handoff (revolutionary feature!)
+    - Agent execution with modes: plan, agent, ask
+    - CLI-to-cloud handoff
     - Agent status monitoring
     - Agent output retrieval
     - Background agent management
     
     Example:
-        >>> # Execute agent task
+        >>> # Execute agent task (defaults to plan mode)
         >>> agent = await workspace.agents.execute(
-        ...     task="Create a FastAPI hello world endpoint",
-        ...     agent_type=AgentType.CODE
+        ...     task="Create a FastAPI hello world endpoint"
+        ... )
+        >>> 
+        >>> # Execute in autonomous mode
+        >>> agent = await workspace.agents.execute(
+        ...     task="Fix the login bug",
+        ...     mode=AgentMode.AGENT
         ... )
         >>> 
         >>> # Check status
@@ -58,7 +63,7 @@ class AgentManager:
     async def execute(
         self,
         task: str,
-        agent_type: AgentType = AgentType.AUTO,
+        mode: AgentMode = AgentMode.PLAN,
         context: Optional[Dict[str, Any]] = None,
         max_iterations: int = 10,
         auto_approve: bool = False
@@ -68,18 +73,16 @@ class AgentManager:
         
         POST /api/v1/sdk/agents
         
-        Agent runs in background and executes task autonomously.
-        Use get_status() to monitor progress, get_output() for results.
+        A single unified agent auto-determines its approach from the task.
+        The mode controls how it interacts with the user during execution.
         
         Args:
             task: Natural language task description
                 Example: "Create a REST API with user authentication"
-            agent_type: Type of agent to use:
-                - AUTO: Automatically selects best agent
-                - CODE: Code generation/modification
-                - RESEARCH: Research and planning
-                - DEBUG: Debugging and fixing issues
-                - TEST: Test creation and execution
+            mode: Execution mode:
+                - PLAN: Plan-first — agent plans before executing step-by-step (default)
+                - AGENT: Autonomous — executes all tools without confirmation
+                - ASK: Confirm — asks for confirmation before every tool call
             context: Optional context dictionary
                 Example: {"framework": "fastapi", "database": "postgresql"}
             max_iterations: Maximum reasoning iterations (1-50, default: 10)
@@ -99,30 +102,29 @@ class AgentManager:
             FleeksPermissionError: If no access to workspace
         
         Example:
-            >>> # Simple code generation
+            >>> # Default plan mode
             >>> agent = await workspace.agents.execute(
-            ...     task="Create a user authentication module",
-            ...     agent_type=AgentType.CODE
+            ...     task="Create a user authentication module"
             ... )
             >>> 
-            >>> # Research with context
+            >>> # Autonomous mode with context
             >>> agent = await workspace.agents.execute(
             ...     task="Research best practices for microservices",
-            ...     agent_type=AgentType.RESEARCH,
+            ...     mode=AgentMode.AGENT,
             ...     context={"language": "python", "scale": "enterprise"}
             ... )
             >>> 
-            >>> # Debugging with more iterations
+            >>> # Ask mode with more iterations
             >>> agent = await workspace.agents.execute(
             ...     task="Fix the memory leak in user_service.py",
-            ...     agent_type=AgentType.DEBUG,
+            ...     mode=AgentMode.ASK,
             ...     max_iterations=20
             ... )
         """
         data = {
             'project_id': self.project_id,
             'task': task,
-            'agent_type': agent_type.value,
+            'mode': mode.value,
             'max_iterations': max_iterations,
             'auto_approve': auto_approve
         }
@@ -138,7 +140,7 @@ class AgentManager:
         local_context: Optional[Dict[str, Any]] = None,
         workspace_snapshot: Optional[Dict[str, Any]] = None,
         conversation_history: Optional[List[Dict[str, str]]] = None,
-        agent_type: AgentType = AgentType.AUTO,
+        mode: AgentMode = AgentMode.PLAN,
         skills: Optional[List[str]] = None
     ) -> AgentHandoff:
         """
@@ -175,7 +177,7 @@ class AgentManager:
                     {"role": "assistant", "content": "I'll create..."},
                     ...
                 ]
-            agent_type: Agent type to use in cloud
+            mode: Execution mode (plan, agent, ask)
         
         Returns:
             AgentHandoff: Handoff result with:
@@ -225,7 +227,7 @@ class AgentManager:
         data = {
             'project_id': self.project_id,
             'task': task,
-            'agent_type': agent_type.value
+            'mode': mode.value
         }
         if local_context:
             data['local_context'] = local_context
