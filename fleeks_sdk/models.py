@@ -1290,6 +1290,66 @@ class ProjectType(str, Enum):
     AGENT_WORKSPACE = "agent_workspace"
 
 
+class MessageSource(str, Enum):
+    """
+    Source of a message pushed into an always-on agent's inbox.
+
+    - ``DASHBOARD``: end-user typed in the public dashboard chat box
+    - ``OPERATOR``:  human operator acting via SDK / CLI
+    - ``AUTOMATION``: another automated system (webhook, cron, etc.)
+
+    Matches the backend ``source`` field on POST /sdk/schedules/{id}/message.
+    """
+    DASHBOARD = "dashboard"
+    OPERATOR = "operator"
+    AUTOMATION = "automation"
+
+
+class MessageStatus(str, Enum):
+    """Lifecycle status of an inbox message."""
+    QUEUED = "queued"
+    CONSUMED = "consumed"
+
+
+@dataclass
+class Message:
+    """
+    A single message in an always-on agent's inbox.
+
+    Matches the entries inside ``agent_schedules.pending_messages``.
+    Capped at 500 entries server-side; treat the list as a tail, not a
+    complete history.
+    """
+    id: str
+    message: str
+    source: str = MessageSource.OPERATOR.value
+    from_: Optional[str] = None  # `from` is reserved in Python — store as `from_`
+    ts: Optional[str] = None
+    status: str = MessageStatus.QUEUED.value
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'Message':
+        return cls(
+            id=data.get('id', ''),
+            message=data.get('message', ''),
+            source=data.get('source', MessageSource.OPERATOR.value),
+            from_=data.get('from'),
+            ts=data.get('ts'),
+            status=data.get('status', MessageStatus.QUEUED.value),
+        )
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Serialize back to wire format ({'from': ...}, not {'from_': ...})."""
+        return {
+            "id": self.id,
+            "message": self.message,
+            "source": self.source,
+            "from": self.from_,
+            "ts": self.ts,
+            "status": self.status,
+        }
+
+
 @dataclass
 class Schedule:
     """
@@ -1329,9 +1389,36 @@ class Schedule:
     next_run_at: Optional[str] = None
     run_count: int = 0
 
+    # ── Always-on dashboards (backend release 2026-04-28) ────────────
+    dashboard_url: Optional[str] = None
+    dashboard_port: Optional[int] = None
+    dashboard_path: Optional[str] = None
+    dashboard_public: bool = False
+    pending_messages: List[Message] = field(default_factory=list)
+
+    # ── Marketplace traceability (backend release 2026-04-28) ────────
+    template_id: Optional[int] = None
+    template_slug: Optional[str] = None
+    template_title: Optional[str] = None
+    template_industry: Optional[str] = None
+    template_category: Optional[str] = None
+    template_version: Optional[str] = None
+
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'Schedule':
         """Create from API response dict."""
+        raw_messages = data.get('pending_messages') or []
+        messages: List[Message] = []
+        for m in raw_messages:
+            if isinstance(m, Message):
+                messages.append(m)
+            elif isinstance(m, dict):
+                try:
+                    messages.append(Message.from_dict(m))
+                except Exception:
+                    # Resilience: unknown shape from a future backend → skip.
+                    continue
+
         return cls(
             schedule_id=data['schedule_id'],
             name=data['name'],
@@ -1363,7 +1450,28 @@ class Schedule:
             last_run_at=data.get('last_run_at'),
             next_run_at=data.get('next_run_at'),
             run_count=data.get('run_count', 0),
+            dashboard_url=data.get('dashboard_url'),
+            dashboard_port=data.get('dashboard_port'),
+            dashboard_path=data.get('dashboard_path'),
+            dashboard_public=bool(data.get('dashboard_public', False)),
+            pending_messages=messages,
+            template_id=data.get('template_id'),
+            template_slug=data.get('template_slug'),
+            template_title=data.get('template_title'),
+            template_industry=data.get('template_industry'),
+            template_category=data.get('template_category'),
+            template_version=data.get('template_version'),
         )
+
+    @property
+    def has_dashboard(self) -> bool:
+        """True when this schedule has a published dashboard URL."""
+        return bool(self.dashboard_url)
+
+    @property
+    def pending_message_count(self) -> int:
+        """Number of messages currently in the agent's inbox tail (max 500)."""
+        return len(self.pending_messages)
 
 
 @dataclass

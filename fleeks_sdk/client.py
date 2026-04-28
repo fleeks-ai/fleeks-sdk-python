@@ -192,54 +192,69 @@ class FleeksClient:
     async def get(
         self,
         endpoint: str,
-        params: Optional[Dict[str, Any]] = None
+        params: Optional[Dict[str, Any]] = None,
+        headers: Optional[Dict[str, str]] = None,
     ) -> Dict[str, Any]:
         """Make a GET request."""
-        return await self._make_request('GET', endpoint, params=params)
+        kwargs: Dict[str, Any] = {}
+        if params is not None:
+            kwargs['params'] = params
+        if headers:
+            kwargs['headers'] = headers
+        return await self._make_request('GET', endpoint, **kwargs)
 
     async def post(
         self,
         endpoint: str,
         data: Optional[Dict[str, Any]] = None,
         json: Optional[Dict[str, Any]] = None,
-        files: Optional[Dict[str, Any]] = None
+        files: Optional[Dict[str, Any]] = None,
+        headers: Optional[Dict[str, str]] = None,
     ) -> Dict[str, Any]:
         """Make a POST request."""
-        kwargs = {}
+        kwargs: Dict[str, Any] = {}
         if json is not None:
             kwargs['json'] = json
         elif data is not None:
             kwargs['data'] = data
         if files is not None:
             kwargs['files'] = files
+        if headers:
+            kwargs['headers'] = headers
         return await self._make_request('POST', endpoint, **kwargs)
 
     async def put(
         self,
         endpoint: str,
         data: Optional[Dict[str, Any]] = None,
-        json: Optional[Dict[str, Any]] = None
+        json: Optional[Dict[str, Any]] = None,
+        headers: Optional[Dict[str, str]] = None,
     ) -> Dict[str, Any]:
         """Make a PUT request."""
-        kwargs = {}
+        kwargs: Dict[str, Any] = {}
         if json is not None:
             kwargs['json'] = json
         elif data is not None:
             kwargs['data'] = data
+        if headers:
+            kwargs['headers'] = headers
         return await self._make_request('PUT', endpoint, **kwargs)
 
     async def patch(
         self,
         endpoint: str,
         data: Optional[Dict[str, Any]] = None,
-        json: Optional[Dict[str, Any]] = None
+        json: Optional[Dict[str, Any]] = None,
+        headers: Optional[Dict[str, str]] = None,
     ) -> Dict[str, Any]:
         """Make a PATCH request."""
-        kwargs = {}
+        kwargs: Dict[str, Any] = {}
         if json is not None:
             kwargs['json'] = json
         elif data is not None:
             kwargs['data'] = data
+        if headers:
+            kwargs['headers'] = headers
         return await self._make_request('PATCH', endpoint, **kwargs)
 
     async def delete(self, endpoint: str) -> Dict[str, Any]:

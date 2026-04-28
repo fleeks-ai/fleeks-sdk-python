@@ -5,6 +5,51 @@ All notable changes to the Fleeks Python SDK will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2026-04-28
+
+### Added — Always-On Agent Custom Dashboards
+
+Tracks backend release `2026_04_28_agent_dashboards_001`. **Minimum backend
+version: 2026-04-28.**
+
+- **`Schedule.set_dashboard(id, *, url, port, path=None, public=False)`** —
+  persist dashboard metadata on the schedule row
+  (`PUT /sdk/schedules/{id}/dashboard`).
+- **`Schedule.send_message(id, *, message, source="operator", from_=None,
+  idempotency_key=None)`** — push a message into an always-on agent's
+  inbox (`POST /sdk/schedules/{id}/message`). Auto-generates an
+  `Idempotency-Key` header when none is supplied.
+- **`Schedule.list_messages(id, *, since_id=None, limit=None)`** — read
+  the pending-message tail (`GET /sdk/schedules/{id}/messages`). Capped at
+  500 server-side; treat as a tail, not full history.
+- **New `Message` dataclass** + `MessageSource` / `MessageStatus` enums.
+  `from` is exposed as `from_` in Python (reserved keyword) and
+  serialized as `from` on the wire via `Message.to_dict()`.
+- **`Schedule` model** gains 11 optional fields: `dashboard_url`,
+  `dashboard_port`, `dashboard_path`, `dashboard_public`,
+  `pending_messages`, `template_id`, `template_slug`, `template_title`,
+  `template_industry`, `template_category`, `template_version`. Plus
+  `Schedule.has_dashboard` and `Schedule.pending_message_count`
+  convenience properties. **All additive — fully back-compatible with
+  older backends.**
+- **`FleeksFeatureUnsupportedError`** — raised when the backend returns
+  404 / 405 / 501 on a known dashboards/messages endpoint, indicating an
+  outdated backend.
+- HTTP `client.get/post/put/patch` now accept an optional `headers=` arg
+  for request-scoped headers (used internally for `Idempotency-Key`).
+- Example: [`examples/publish_dashboard.py`](examples/publish_dashboard.py).
+
+### Notes
+
+- The canonical end-to-end flow is the in-workspace tool
+  `publish_dashboard(schedule_id, …)` invoked from inside the agent's
+  container. The new SDK methods are the *primitives* underneath it —
+  use them when self-hosting dashboards or driving the inbox from
+  outside the workspace.
+- When `public=True`, the API key is embedded in the served HTML so the
+  browser can call back. Always use a **scoped, message-only** API key
+  for end-customer-facing pages and rotate via `/api-keys` if leaked.
+
 ## [0.5.2] - 2026-03-30
 
 ### Added

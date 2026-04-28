@@ -87,6 +87,29 @@ class FleeksValidationError(FleeksAPIError):
         super().__init__(message, status_code, response)
 
 
+class FleeksFeatureUnsupportedError(FleeksAPIError):
+    """
+    Raised when the connected backend does not support a feature this SDK
+    method requires (e.g. dashboards/messages on a backend older than the
+    2026-04-28 always-on agent dashboards release).
+
+    Detected when the backend returns 404 / 405 / 501 for a known endpoint
+    path that newer backends serve.
+    """
+
+    def __init__(
+        self,
+        message: str = (
+            "This Fleeks backend does not support the requested feature. "
+            "Upgrade the backend (minimum 2026-04-28 always-on dashboards "
+            "release) or pin an older SDK version."
+        ),
+        status_code: Optional[int] = None,
+        response: Optional[httpx.Response] = None,
+    ):
+        super().__init__(message, status_code, response)
+
+
 class FleeksConnectionError(FleeksException):
     """Exception raised for connection errors."""
     pass

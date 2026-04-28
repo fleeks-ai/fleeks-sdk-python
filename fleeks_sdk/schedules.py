@@ -4,21 +4,27 @@ Schedule management for the Fleeks SDK.
 Matches backend endpoints in app/api/api_v1/endpoints/sdk/agent_schedules.py
 
 Endpoints:
-    POST   /sdk/schedules/              — Create agent schedule
-    GET    /sdk/schedules/              — List user's schedules
-    GET    /sdk/schedules/{id}          — Get schedule details
-    PUT    /sdk/schedules/{id}          — Update schedule
-    DELETE /sdk/schedules/{id}          — Delete schedule
-    POST   /sdk/schedules/{id}/start    — Start schedule (provision daemon)
-    POST   /sdk/schedules/{id}/stop     — Stop schedule (teardown daemon)
-    POST   /sdk/schedules/{id}/pause    — Pause schedule
-    POST   /sdk/schedules/{id}/resume   — Resume schedule
-    GET    /sdk/schedules/{id}/status   — Get daemon runtime status
-    GET    /sdk/schedules/{id}/logs     — Get daemon logs
-    GET    /sdk/schedules/quota         — Get agent-hours quota usage
+    POST   /sdk/schedules/                  — Create agent schedule
+    GET    /sdk/schedules/                  — List user's schedules
+    GET    /sdk/schedules/{id}              — Get schedule details
+    PUT    /sdk/schedules/{id}              — Update schedule
+    DELETE /sdk/schedules/{id}              — Delete schedule
+    POST   /sdk/schedules/{id}/start        — Start schedule (provision daemon)
+    POST   /sdk/schedules/{id}/stop         — Stop schedule (teardown daemon)
+    POST   /sdk/schedules/{id}/pause        — Pause schedule
+    POST   /sdk/schedules/{id}/resume       — Resume schedule
+    GET    /sdk/schedules/{id}/status       — Get daemon runtime status
+    GET    /sdk/schedules/{id}/logs         — Get daemon logs
+    GET    /sdk/schedules/quota             — Get agent-hours quota usage
+
+Always-On Dashboards (backend release 2026-04-28):
+    PUT    /sdk/schedules/{id}/dashboard    — Persist dashboard metadata
+    POST   /sdk/schedules/{id}/message      — Push a message into the inbox
+    GET    /sdk/schedules/{id}/messages     — Read pending message tail
 """
 
-from typing import Dict, Any, List, Optional
+import uuid
+from typing import Dict, Any, List, Optional, AsyncIterator
 from .models import (
     Schedule,
     ScheduleList,
@@ -26,8 +32,15 @@ from .models import (
     DaemonStatusInfo,
     DaemonLogs,
     QuotaUsage,
+    Message,
+    MessageSource,
 )
-from .exceptions import FleeksAPIError, FleeksResourceNotFoundError
+from .exceptions import (
+    FleeksAPIError,
+    FleeksResourceNotFoundError,
+    FleeksFeatureUnsupportedError,
+    FleeksValidationError,
+)
 
 
 class ScheduleManager:
@@ -378,3 +391,230 @@ class ScheduleManager:
         """
         response = await self.client.get("schedules/quota")
         return QuotaUsage.from_dict(response)
+
+    # ── DASHBOARDS & MESSAGES (backend release 2026-04-28) ───
+    #
+    # The canonical recommended flow is to run the in-workspace tool
+    # ``publish_dashboard(schedule_id, …)`` from inside the always-on agent
+    # container — it scaffolds an HTML/JS bundle, starts a static server,
+    # then calls :meth:`set_dashboard` for you.
+    #
+    # The methods below are the *primitives* — useful when you host the
+    # dashboard yourself (custom domain, on-prem, etc.) or when you want
+    # to drive the agent's inbox programmatically from outside the
+    # workspace (operator console, automated webhook, etc.).
+
+    async def set_dashboard(
+        self,
+        schedule_id: str,
+        *,
+        url: str,
+        port: int,
+        path: Optional[str] = None,
+        public: bool = False,
+    ) -> Schedule:
+        """
+        Persist dashboard metadata on the schedule row.
+
+        Endpoint: ``PUT /sdk/schedules/{id}/dashboard``
+
+        Args:
+            schedule_id: Schedule identifier.
+            url:    Public dashboard URL (e.g.
+                    ``"https://preview.fleeks.ai/<wid>/proxy/8080/"``).
+            port:   Port the static server listens on inside the workspace.
+            path:   Optional path prefix (e.g. ``"/dashboard"``).
+            public: When ``True``, the dashboard is intended for end-users.
+                    Use a **scoped, message-only** API key with this flag —
+                    the key is embedded in the served HTML so the browser
+                    can call ``send_message``.
+
+        Returns:
+            Schedule: Updated schedule with the new ``dashboard_*`` fields.
+
+        Raises:
+            FleeksFeatureUnsupportedError: Backend predates 2026-04-28.
+            FleeksResourceNotFoundError:   Schedule not found.
+
+        Example:
+            >>> sched = await client.schedules.set_dashboard(
+            ...     "sched_abc",
+            ...     url="https://my.acme.io/agent/",
+            ...     port=8080,
+            ...     public=True,
+            ... )
+            >>> print(sched.dashboard_url)
+        """
+        body: Dict[str, Any] = {
+            "dashboard_url": url,
+            "dashboard_port": int(port),
+            "dashboard_public": bool(public),
+        }
+        if path is not None:
+            body["dashboard_path"] = path
+        try:
+            response = await self.client.put(
+                f"schedules/{schedule_id}/dashboard", json=body
+            )
+        except FleeksAPIError as e:
+            self._raise_typed(e, schedule_id)
+        return Schedule.from_dict(response)
+
+    async def send_message(
+        self,
+        schedule_id: str,
+        *,
+        message: str,
+        source: str = MessageSource.OPERATOR.value,
+        from_: Optional[str] = None,
+        idempotency_key: Optional[str] = None,
+    ) -> Message:
+        """
+        Push a message into the agent's inbox.
+
+        Endpoint: ``POST /sdk/schedules/{id}/message``
+
+        The server appends to ``agent_schedules.pending_messages`` (capped
+        at 500) and best-effort drops a JSON file inside the daemon
+        container. The DB row is the source of truth — even if the file
+        write fails, the agent picks up the message within ~60s.
+
+        Args:
+            schedule_id:     Schedule identifier.
+            message:         Message text (1+ chars).
+            source:          One of ``"dashboard"``, ``"operator"``, ``"automation"``.
+            from_:           Optional free-form sender identifier
+                             (e.g. ``"alex@acme.io"``).
+            idempotency_key: Optional client-generated key. The SDK auto-
+                             generates one when not supplied so retries
+                             after transient failures don't double-send.
+
+        Returns:
+            Message: The newly-queued message (with server-assigned ``id``
+                and ``ts``).
+
+        Raises:
+            FleeksValidationError:        Empty message or unknown source.
+            FleeksFeatureUnsupportedError: Backend predates 2026-04-28.
+
+        Example:
+            >>> msg = await client.schedules.send_message(
+            ...     "sched_abc",
+            ...     message="Reply to the Smith family.",
+            ...     source="operator",
+            ...     from_="alex@acme.io",
+            ... )
+            >>> print(msg.id, msg.status)
+        """
+        if not message or not message.strip():
+            raise FleeksValidationError("message must be non-empty")
+
+        body: Dict[str, Any] = {
+            "message": message,
+            "source": source,
+        }
+        if from_ is not None:
+            body["from"] = from_
+
+        headers = {
+            "Idempotency-Key": idempotency_key or f"msg_{uuid.uuid4().hex}",
+        }
+        try:
+            response = await self.client.post(
+                f"schedules/{schedule_id}/message",
+                json=body,
+                headers=headers,
+            )
+        except FleeksAPIError as e:
+            self._raise_typed(e, schedule_id)
+        return Message.from_dict(response)
+
+    async def list_messages(
+        self,
+        schedule_id: str,
+        *,
+        since_id: Optional[str] = None,
+        limit: Optional[int] = None,
+    ) -> List[Message]:
+        """
+        Return the pending-message tail for a schedule.
+
+        Endpoint: ``GET /sdk/schedules/{id}/messages``
+
+        The server returns at most 500 messages — treat this as a tail,
+        not a complete history. Future backends will offer cursor
+        pagination via ``since_id`` / ``limit`` (forwarded today as a
+        best-effort hint; older backends ignore them).
+
+        Args:
+            schedule_id: Schedule identifier.
+            since_id:    Optional cursor — return only messages with id
+                         strictly after this one.
+            limit:       Optional max number of messages to return.
+
+        Returns:
+            list[Message]: Messages in chronological order.
+
+        Raises:
+            FleeksFeatureUnsupportedError: Backend predates 2026-04-28.
+        """
+        params: Dict[str, str] = {}
+        if since_id:
+            params["since_id"] = since_id
+        if limit is not None:
+            params["limit"] = str(int(limit))
+
+        try:
+            response = await self.client.get(
+                f"schedules/{schedule_id}/messages",
+                params=params or None,
+            )
+        except FleeksAPIError as e:
+            self._raise_typed(e, schedule_id)
+
+        # The endpoint returns a bare list, but be defensive in case a
+        # future backend wraps it in {"messages": [...], "next_cursor": …}.
+        items: List[Any]
+        if isinstance(response, list):
+            items = response
+        elif isinstance(response, dict):
+            items = response.get("messages") or response.get("data") or []
+        else:
+            items = []
+
+        out: List[Message] = []
+        for item in items:
+            if isinstance(item, dict):
+                try:
+                    out.append(Message.from_dict(item))
+                except Exception:
+                    continue
+        # Client-side filter — best-effort if server didn't honour params.
+        if since_id:
+            try:
+                idx = next(i for i, m in enumerate(out) if m.id == since_id)
+                out = out[idx + 1:]
+            except StopIteration:
+                pass
+        if limit is not None and limit > 0:
+            out = out[-limit:]
+        return out
+
+    # ── helpers ─────────────────────────────────────────────
+
+    @staticmethod
+    def _raise_typed(error: FleeksAPIError, schedule_id: str) -> None:
+        """Map raw API errors to typed exceptions; never returns."""
+        code = error.status_code
+        if code == 404:
+            raise FleeksResourceNotFoundError(
+                f"Schedule '{schedule_id}' not found"
+            ) from error
+        if code in (405, 501):
+            raise FleeksFeatureUnsupportedError(
+                "Always-on agent dashboards are not supported by this "
+                "Fleeks backend. Required minimum: 2026-04-28 release."
+            ) from error
+        if code == 422:
+            raise FleeksValidationError(str(error)) from error
+        raise error

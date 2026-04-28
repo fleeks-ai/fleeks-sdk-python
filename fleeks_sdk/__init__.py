@@ -17,7 +17,7 @@ Features:
 - Type hints throughout
 """
 
-__version__ = "0.6.0"
+__version__ = "0.7.0"
 __author__ = "Fleeks Inc"
 __email__ = "support@fleeks.com"
 
@@ -83,6 +83,7 @@ from .exceptions import (
     FleeksPermissionError,
     FleeksResourceNotFoundError,
     FleeksValidationError,
+    FleeksFeatureUnsupportedError,
     FleeksConnectionError,
     FleeksStreamingError,
     FleeksTimeoutError
@@ -132,6 +133,10 @@ from .models import (
     QuotaMetric,
     QuotaCounter,
     QuotaUsage,
+    # Always-On dashboards (backend release 2026-04-28)
+    Message,
+    MessageSource,
+    MessageStatus,
     # Channels
     ChannelType,
     ChannelTypeInfo,
@@ -252,6 +257,10 @@ __all__ = [
     "QuotaMetric",
     "QuotaCounter",
     "QuotaUsage",
+    # Always-On dashboards (backend release 2026-04-28)
+    "Message",
+    "MessageSource",
+    "MessageStatus",
     # Channels
     "ChannelType",
     "ChannelTypeInfo",
@@ -291,6 +300,7 @@ __all__ = [
     "FleeksPermissionError",
     "FleeksResourceNotFoundError",
     "FleeksValidationError",
+    "FleeksFeatureUnsupportedError",
     "FleeksConnectionError",
     "FleeksStreamingError",
     "FleeksTimeoutError",
