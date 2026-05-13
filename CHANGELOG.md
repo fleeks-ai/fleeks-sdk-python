@@ -5,6 +5,26 @@ All notable changes to the Fleeks Python SDK will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.1] - 2026-05-13
+
+### Fixed
+
+- Live-audited the SDK against `https://api.fleeks.ai` and fixed all audited regressions. Verified with a full end-to-end audit run: `16 PASS / 0 FAIL / 0 SKIP`.
+- Added dual auth headers in the core client (`X-API-Key` and `Authorization: Bearer`) for backend routes that require bearer auth.
+- Restricted automatic retries to transient transport and rate-limit failures so 4xx API errors are surfaced directly.
+- Preserved explicit trailing slashes in the client URL builder and updated schedules, channels, and automations collection routes to use the backend-required trailing-slash form.
+- Fixed `files.update()` to send `path` as a query parameter instead of a JSON body field.
+- Added empty-body handling for 204 responses to avoid JSON decode failures on successful delete/update calls.
+- Updated `get_api_key_info()` and `get_usage_stats()` to use the SDK endpoints with fallback to older backend routes on `404` and `500`.
+- Moved voice manager REST calls to `/api/v1/voice/*` and added compatibility for both envelope and bare-list session responses.
+- Moved preview manager REST calls to `/api/v1/preview/*`, mapped `409 container_not_running` into `WorkspaceNotReadyError`, and added compatibility for both envelope and bare-list preview listings.
+- Exported `WorkspaceNotReadyError` from the public package surface.
+- Added `scripts/live_audit.py`, a 16-phase live audit runner covering API key helpers, workspaces, files, terminal, containers, agents, schedules, embeds, channels, automations, previews, voice, AI keys, background jobs, error handling, and cleanup.
+
+### Notes
+
+- Minimum recommended backend version for the new SDK auth and usage endpoints is `2026.05.13+`. The SDK falls back automatically when talking to older backends.
+
 ## [0.7.0] - 2026-04-28
 
 ### Added — Always-On Agent Custom Dashboards

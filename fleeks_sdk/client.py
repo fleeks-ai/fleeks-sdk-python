@@ -8,11 +8,17 @@ from typing import Dict, Any, Optional, List, Union, AsyncContextManager
 from contextlib import asynccontextmanager
 
 import httpx
-from tenacity import retry, stop_after_attempt, wait_exponential
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception
 from pydantic import BaseModel
 
 from .config import Config
 from .exceptions import FleeksAPIError, FleeksException, FleeksRateLimitError
+
+
+def _is_transient_error(exc: BaseException) -> bool:
+    """Retry only on rate-limits and network-level errors, never on 4xx API errors."""
+    import asyncio
+    return isinstance(exc, (FleeksRateLimitError, httpx.RequestError, asyncio.CancelledError))
 from .auth import APIKeyAuth
 from .workspaces import WorkspaceManager
 from .agents import AgentManager
@@ -104,7 +110,8 @@ class FleeksClient:
                 base_url=self.base_url,
                 timeout=httpx.Timeout(self.config.timeout),
                 headers={
-                    'X-API-Key': self.api_key,  # Backend expects X-API-Key header, not Bearer
+                    'X-API-Key': self.api_key,
+                    'Authorization': f'Bearer {self.api_key}',
                     'Content-Type': 'application/json',
                     'User-Agent': f'fleeks-python-sdk/{self.config.version}',
                     'Accept': 'application/json'
@@ -114,7 +121,8 @@ class FleeksClient:
 
     @retry(
         stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=1, min=1, max=10)
+        wait=wait_exponential(multiplier=1, min=1, max=10),
+        retry=retry_if_exception(_is_transient_error),
     )
     async def _make_request(
         self,
@@ -140,8 +148,9 @@ class FleeksClient:
         """
         await self._ensure_client()
         
-        # Normalize endpoint — no trailing slash (FastAPI convention)
-        normalized_endpoint = endpoint.strip('/')
+        # Strip leading slash only; preserve any trailing slash the caller explicitly adds
+        # (collection routes like /sdk/schedules/ require it when redirect_slashes=False).
+        normalized_endpoint = endpoint.lstrip('/')
         prefix = kwargs.pop('_url_prefix', '/api/v1/sdk')
         url = f"{prefix}/{normalized_endpoint}"
         
@@ -166,6 +175,10 @@ class FleeksClient:
             
             response.raise_for_status()
             
+            # Handle empty bodies (e.g. 204 No Content from PUT/DELETE)
+            if not response.content:
+                return {}
+
             # Handle different content types
             content_type = response.headers.get('content-type', '')
             if 'application/json' in content_type:
@@ -472,11 +485,21 @@ class FleeksClient:
 
     async def get_usage_stats(self) -> Dict[str, Any]:
         """Get current usage statistics and rate limits."""
-        return await self.get('/usage/stats')
+        try:
+            return await self.get('usage/stats')  # /api/v1/sdk/usage/stats (backend >= 2026.05.13)
+        except FleeksAPIError as exc:
+            if exc.status_code in (404, 500):
+                return await self._make_request('GET', 'billing/usage', _url_prefix='/api/v1')
+            raise
 
     async def get_api_key_info(self) -> Dict[str, Any]:
         """Get information about the current API key."""
-        return await self.get('/auth/key-info')
+        try:
+            return await self.get('auth/key-info')  # /api/v1/sdk/auth/key-info (backend >= 2026.05.13)
+        except FleeksAPIError as exc:
+            if exc.status_code in (404, 500):
+                return await self._make_request('GET', 'auth/me', _url_prefix='/api/v1')
+            raise
 
 
 # Convenience function for quick usage

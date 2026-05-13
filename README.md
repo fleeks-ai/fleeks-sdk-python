@@ -42,6 +42,8 @@ Fleeks is a revolutionary AI-powered development platform that provides instant 
 pip install fleeks-sdk
 ```
 
+For the best compatibility with API key metadata, usage stats, voice, and preview routes, use Fleeks backend `2026.05.13` or newer. The SDK includes fallbacks for older backends where possible.
+
 ## 🚀 Quick Start
 
 ```python

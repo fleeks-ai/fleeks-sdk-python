@@ -125,7 +125,7 @@ class ChannelManager:
         if message_filter is not None:
             body["message_filter"] = message_filter
 
-        response = await self.client.post("channels", json=body)
+        response = await self.client.post("channels/", json=body)
         return Channel.from_dict(response)
 
     async def list(
@@ -151,7 +151,7 @@ class ChannelManager:
             "limit": str(limit),
             "offset": str(offset),
         }
-        response = await self.client.get("channels", params=params)
+        response = await self.client.get("channels/", params=params)
         return ChannelList.from_dict(response)
 
     async def get(self, channel_id: str) -> Channel:

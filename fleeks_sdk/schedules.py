@@ -168,7 +168,7 @@ class ScheduleManager:
         if tags is not None:
             body["tags"] = tags
 
-        response = await self.client.post("schedules", json=body)
+        response = await self.client.post("schedules/", json=body)
         return Schedule.from_dict(response)
 
     async def list(
@@ -199,7 +199,7 @@ class ScheduleManager:
         if schedule_type:
             params["schedule_type"] = schedule_type
 
-        response = await self.client.get("schedules", params=params)
+        response = await self.client.get("schedules/", params=params)
         return ScheduleList.from_dict(response)
 
     async def get(self, schedule_id: str) -> Schedule:

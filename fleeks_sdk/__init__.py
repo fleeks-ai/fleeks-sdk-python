@@ -17,7 +17,7 @@ Features:
 - Type hints throughout
 """
 
-__version__ = "0.7.0"
+__version__ = "0.7.1"
 __author__ = "Fleeks Inc"
 __email__ = "support@fleeks.com"
 
@@ -86,7 +86,8 @@ from .exceptions import (
     FleeksFeatureUnsupportedError,
     FleeksConnectionError,
     FleeksStreamingError,
-    FleeksTimeoutError
+    FleeksTimeoutError,
+    WorkspaceNotReadyError,
 )
 
 # Data models
@@ -304,4 +305,5 @@ __all__ = [
     "FleeksConnectionError",
     "FleeksStreamingError",
     "FleeksTimeoutError",
+    "WorkspaceNotReadyError",
 ]

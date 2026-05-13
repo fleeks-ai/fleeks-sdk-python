@@ -1966,12 +1966,21 @@ class PreviewSessionList:
     project_id: int
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'PreviewSessionList':
+    def from_dict(cls, data: Any) -> 'PreviewSessionList':
+        if isinstance(data, list):
+            sessions = [PreviewSession.from_dict(item) for item in data]
+            project_id = sessions[0].project_id if sessions else 0
+            return cls(
+                sessions=sessions,
+                total=len(sessions),
+                project_id=project_id,
+            )
+
         sessions = [PreviewSession.from_dict(s) for s in data.get('sessions', [])]
         return cls(
             sessions=sessions,
             total=data.get('total', len(sessions)),
-            project_id=data.get('project_id', 0),
+            project_id=data.get('project_id', sessions[0].project_id if sessions else 0),
         )
 
 

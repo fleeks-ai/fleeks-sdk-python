@@ -106,7 +106,7 @@ class AutomationManager:
         if context_mapping is not None:
             body["context_mapping"] = context_mapping
 
-        response = await self.client.post("automations", json=body)
+        response = await self.client.post("automations/", json=body)
         return Automation.from_dict(response)
 
     async def list(
@@ -132,7 +132,7 @@ class AutomationManager:
             "limit": str(limit),
             "offset": str(offset),
         }
-        response = await self.client.get("automations", params=params)
+        response = await self.client.get("automations/", params=params)
         return AutomationList.from_dict(response)
 
     async def get(self, automation_id: str) -> Automation:

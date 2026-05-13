@@ -123,3 +123,28 @@ class FleeksStreamingError(FleeksException):
 class FleeksTimeoutError(FleeksException):
     """Exception raised for timeout errors."""
     pass
+
+
+class WorkspaceNotReadyError(FleeksAPIError):
+    """
+    Raised when an operation requires a running workspace container but none
+    is available (HTTP 409 with error_code='container_not_running').
+
+    Attributes:
+        ready_for_preview: Always False when raised.
+        remediation: List of suggested remediation steps from the backend.
+        project_id: Project ID that triggered the error.
+    """
+
+    def __init__(
+        self,
+        message: str = "Workspace exists but no running container is available. Start the workspace container first.",
+        status_code: int = 409,
+        response: Optional[Any] = None,
+        project_id: Optional[int] = None,
+        remediation: Optional[list] = None,
+    ):
+        super().__init__(message, status_code, response)
+        self.ready_for_preview: bool = False
+        self.project_id = project_id
+        self.remediation: list = remediation or []

@@ -33,7 +33,28 @@ from .exceptions import (
     FleeksAPIError,
     FleeksResourceNotFoundError,
     FleeksValidationError,
+    WorkspaceNotReadyError,
 )
+
+
+def _raise_if_container_not_running(exc: FleeksAPIError) -> None:
+    """Convert a 409 container_not_running API error into WorkspaceNotReadyError."""
+    if exc.status_code != 409:
+        return
+    try:
+        detail = exc.response.json().get("detail", {}) if exc.response else {}
+        if isinstance(detail, dict) and detail.get("error_code") == "container_not_running":
+            raise WorkspaceNotReadyError(
+                message=detail.get("message", str(exc)),
+                status_code=409,
+                response=exc.response,
+                project_id=detail.get("project_id"),
+                remediation=detail.get("remediation", []),
+            ) from exc
+    except WorkspaceNotReadyError:
+        raise
+    except Exception:
+        pass
 
 
 class PreviewManager:
@@ -127,12 +148,18 @@ class PreviewManager:
         if env_vars is not None:
             body["env_vars"] = env_vars
 
-        response = await self._client._make_request(
-            "POST",
-            f"preview/sessions/{project_id}/start",
-            json=body,
-        )
-        return PreviewSession.from_dict(response)
+        try:
+            response = await self._client._make_request(
+                "POST",
+                f"preview/sessions/{project_id}/start",
+                json=body,
+                _url_prefix="/api/v1",
+            )
+            return PreviewSession.from_dict(response)
+        except FleeksAPIError as exc:
+            _raise_if_container_not_running(exc)
+            raise
+        raise
 
     async def get(self, session_id: str) -> PreviewSession:
         """
@@ -153,6 +180,7 @@ class PreviewManager:
             response = await self._client._make_request(
                 "GET",
                 f"preview/sessions/{session_id}",
+                _url_prefix="/api/v1",
             )
             return PreviewSession.from_dict(response)
         except FleeksAPIError as exc:
@@ -200,6 +228,7 @@ class PreviewManager:
             "GET",
             f"preview/sessions/project/{project_id}",
             params=params,
+            _url_prefix="/api/v1",
         )
         return PreviewSessionList.from_dict(response)
 
@@ -228,6 +257,7 @@ class PreviewManager:
             return await self._client._make_request(
                 "DELETE",
                 f"preview/sessions/{session_id}",
+                _url_prefix="/api/v1",
             )
         except FleeksAPIError as exc:
             if exc.status_code == 404:
@@ -262,6 +292,7 @@ class PreviewManager:
             response = await self._client._make_request(
                 "POST",
                 f"preview/sessions/{session_id}/refresh",
+                _url_prefix="/api/v1",
             )
             return PreviewSession.from_dict(response)
         except FleeksAPIError as exc:
@@ -296,6 +327,7 @@ class PreviewManager:
         response = await self._client._make_request(
             "GET",
             f"preview/sessions/{session_id}/health",
+            _url_prefix="/api/v1",
         )
         return PreviewHealth.from_dict(response)
 
@@ -322,11 +354,16 @@ class PreviewManager:
             ...       f"(confidence {det.confidence:.0%})")
             >>> print(f"Suggested command: {det.suggested_command}")
         """
-        response = await self._client._make_request(
-            "POST",
-            f"preview/sessions/{project_id}/detect",
-        )
-        return PreviewDetectResult.from_dict(response)
+        try:
+            response = await self._client._make_request(
+                "POST",
+                f"preview/sessions/{project_id}/detect",
+                _url_prefix="/api/v1",
+            )
+            return PreviewDetectResult.from_dict(response)
+        except FleeksAPIError as exc:
+            _raise_if_container_not_running(exc)
+            raise
 
     # ------------------------------------------------------------------
     # Batch / convenience

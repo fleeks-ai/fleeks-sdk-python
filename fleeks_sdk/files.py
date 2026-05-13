@@ -220,17 +220,11 @@ class FileManager:
             ...     content='{"debug": true}'
             ... )
         """
-        data = {
-            'path': path,
-            'content': content,
-            'encoding': encoding,
-            'create_if_missing': create_if_missing
-        }
-        
         response = await self.client._make_request(
             'PUT',
             f'files/{self.project_id}/content',
-            json=data
+            params={'path': path},
+            json={'content': content, 'encoding': encoding}
         )
         return FileInfo.from_dict(response)
     

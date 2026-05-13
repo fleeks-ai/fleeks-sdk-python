@@ -176,7 +176,7 @@ class VoiceManager:
         Returns:
             Dict with models, voices, limits, and default config.
         """
-        return await self._client.get("voice/config")
+        return await self._client._make_request("GET", "voice/config", _url_prefix="/api/v1")
 
     async def get_sessions(self) -> List[Dict[str, Any]]:
         """
@@ -185,8 +185,14 @@ class VoiceManager:
         Returns:
             List of active voice session info dicts.
         """
-        result = await self._client.get("voice/sessions")
-        return result.get("sessions", [])
+        result = await self._client._make_request("GET", "voice/sessions", _url_prefix="/api/v1")
+        # Backend (>= 2026.05.13) returns {"sessions": [...], "total": N}
+        if isinstance(result, dict):
+            return result.get("sessions", [])
+        # Bare-list fallback for older backends
+        if isinstance(result, list):
+            return result
+        return []
 
     async def get_stats(self) -> Dict[str, Any]:
         """
@@ -195,7 +201,7 @@ class VoiceManager:
         Returns:
             Dict with active sessions count, total, and capacity info.
         """
-        return await self._client.get("voice/stats")
+        return await self._client._make_request("GET", "voice/stats", _url_prefix="/api/v1")
 
     async def health(self) -> Dict[str, Any]:
         """
@@ -204,7 +210,7 @@ class VoiceManager:
         Returns:
             Dict with health status and component checks.
         """
-        return await self._client.get("voice/health")
+        return await self._client._make_request("GET", "voice/health", _url_prefix="/api/v1")
 
     # ── Socket.IO session management ────────────────────────
 
