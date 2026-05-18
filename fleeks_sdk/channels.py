@@ -49,6 +49,13 @@ class ChannelManager:
         >>> # Initiate OAuth / QR auth
         >>> auth = await client.channels.auth(chan.channel_id)
         >>> print(auth.oauth_url or auth.qr_code_data)
+
+    Notes:
+        - There is no ``send()`` method here. Outbound messaging is
+          handled by the agent daemon once the channel is authenticated
+          and the schedule is running. Use :meth:`test` to verify
+          credentials, and ``client.schedules.start(...)`` to bring the
+          agent online.
     """
 
     def __init__(self, client):
@@ -189,12 +196,30 @@ class ChannelManager:
             channel_id: Channel identifier.
             **kwargs: Fields to update. Accepted keys:
                 channel_name, route_to_agents, default_agent,
-                message_filter, rate_limit_per_minute, rate_limit_per_hour.
+                message_filter, rate_limit_per_minute,
+                rate_limit_per_hour, is_active, credentials.
+
+                ``credentials`` is rotated through the secrets vault
+                (GCP Secret Manager when available, Fernet otherwise)
+                and never persisted to the database directly.
 
         Returns:
             Channel: Updated channel.
         """
-        body = {k: v for k, v in kwargs.items() if v is not None}
+        allowed = {
+            "channel_name",
+            "route_to_agents",
+            "default_agent",
+            "message_filter",
+            "rate_limit_per_minute",
+            "rate_limit_per_hour",
+            "is_active",
+            "credentials",
+        }
+        body = {
+            k: v for k, v in kwargs.items()
+            if v is not None and k in allowed
+        }
         response = await self.client.put(f"channels/{channel_id}", json=body)
         return Channel.from_dict(response)
 
@@ -241,25 +266,35 @@ class ChannelManager:
         """
         Check the authentication status of a pending auth flow.
 
+        The backend returns a flatter payload here than :meth:`auth`
+        (no ``data`` envelope): the QR image / OAuth URL is folded
+        directly into the response. ``AuthFlowResult.from_dict`` handles
+        both shapes, so ``.oauth_url``, ``.qr_image`` and ``.qr_code_data``
+        work uniformly.
+
         Args:
             channel_id: Channel identifier.
 
         Returns:
-            AuthFlowResult: Current auth status.
+            AuthFlowResult: Current auth status. Use
+            :attr:`AuthFlowResult.is_authenticated` to check completion.
         """
-        response = await self.client.get(f"channels/{channel_id}/auth/status")
+        response = await self.client.get(
+            f"channels/{channel_id}/auth/status"
+        )
         return AuthFlowResult.from_dict(response)
 
     async def test(self, channel_id: str) -> Dict[str, Any]:
         """
         Test a channel connection.
 
-        Sends a test message and verifies connectivity.
+        Validates the stored credentials. A full end-to-end message
+        round-trip additionally requires the schedule to be running.
 
         Args:
             channel_id: Channel identifier.
 
         Returns:
-            dict: Test result with status and message.
+            dict: ``{channel_id, channel_type, test_result, message}``.
         """
         return await self.client.post(f"channels/{channel_id}/test")

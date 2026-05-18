@@ -1688,44 +1688,111 @@ class ChannelType(str, Enum):
 
 @dataclass
 class ChannelTypeInfo:
-    """Information about a supported channel type."""
-    channel_type: str
-    display_name: str
+    """
+    Information about a supported messaging channel type.
+
+    Matches backend ``ChannelTypeInfo`` in
+    ``app/api/api_v1/endpoints/sdk/agent_channels.py``::
+
+        {
+          "type_id": "slack",
+          "name": "Slack",
+          "description": "...",
+          "required_credentials": ["bot_token"],
+          "optional_credentials": ["app_token"],
+          "auth_flow": "oauth",     # token | oauth | qr_code | api_key
+          "docs_url": "https://..."
+        }
+    """
+    type_id: str
+    name: str
     description: str
-    auth_required: bool = True
-    auth_flow: str = "oauth2"
-    supported_features: List[str] = field(default_factory=list)
+    auth_flow: str = "token"
+    required_credentials: List[str] = field(default_factory=list)
+    optional_credentials: List[str] = field(default_factory=list)
+    docs_url: str = ""
+
+    # ── Backwards-compat aliases ─────────────────────────────
+    @property
+    def channel_type(self) -> str:
+        """Alias for ``type_id`` (older SDK callers)."""
+        return self.type_id
+
+    @property
+    def display_name(self) -> str:
+        """Alias for ``name`` (older SDK callers)."""
+        return self.name
+
+    @property
+    def auth_required(self) -> bool:
+        """True unless the channel explicitly has no required credentials
+        AND no OAuth/QR step (e.g. a future fully-public channel)."""
+        return bool(self.required_credentials) or self.auth_flow in (
+            "oauth", "qr_code"
+        )
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'ChannelTypeInfo':
+        # Accept either backend field names (preferred) or legacy SDK
+        # field names so demo code written against the old model keeps
+        # working.
+        type_id = data.get('type_id') or data.get('channel_type')
+        if not type_id:
+            raise KeyError(
+                "ChannelTypeInfo response missing 'type_id' "
+                f"(got keys: {sorted(data.keys())})"
+            )
         return cls(
-            channel_type=data['channel_type'],
-            display_name=data.get('display_name', ''),
+            type_id=type_id,
+            name=data.get('name') or data.get('display_name', ''),
             description=data.get('description', ''),
-            auth_required=data.get('auth_required', True),
-            auth_flow=data.get('auth_flow', 'oauth2'),
-            supported_features=data.get('supported_features', []),
+            auth_flow=data.get('auth_flow', 'token'),
+            required_credentials=list(data.get('required_credentials', [])),
+            optional_credentials=list(data.get('optional_credentials', [])),
+            docs_url=data.get('docs_url', ''),
         )
 
 
 @dataclass
 class Channel:
     """
-    Messaging channel — matches backend ChannelResponse.
+    Messaging channel — matches backend ``ChannelResponse``.
 
     Represents a connected messaging platform integration.
     """
     channel_id: str
     schedule_id: str
     channel_type: str
-    name: str
+    channel_name: Optional[str]
     status: str
+    is_active: bool
     created_at: str
-    updated_at: str
-    config: Dict[str, Any] = field(default_factory=dict)
+    connected_at: Optional[str] = None
+    route_to_agents: List[str] = field(default_factory=list)
+    default_agent: Optional[str] = None
+    rate_limit_per_minute: int = 60
+    rate_limit_per_hour: int = 1000
+    messages_received: int = 0
+    messages_sent: int = 0
     last_message_at: Optional[str] = None
-    message_count: int = 0
-    error_message: Optional[str] = None
+    last_error: Optional[str] = None
+    last_error_at: Optional[str] = None
+
+    # ── Backwards-compat aliases ─────────────────────────────
+    @property
+    def name(self) -> str:
+        """Alias for ``channel_name``."""
+        return self.channel_name or ""
+
+    @property
+    def message_count(self) -> int:
+        """Total messages handled by the channel (in + out)."""
+        return (self.messages_received or 0) + (self.messages_sent or 0)
+
+    @property
+    def error_message(self) -> Optional[str]:
+        """Alias for ``last_error``."""
+        return self.last_error
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'Channel':
@@ -1733,14 +1800,20 @@ class Channel:
             channel_id=data['channel_id'],
             schedule_id=data['schedule_id'],
             channel_type=data['channel_type'],
-            name=data.get('name', ''),
-            status=data.get('status', 'inactive'),
-            created_at=data['created_at'],
-            updated_at=data.get('updated_at', data['created_at']),
-            config=data.get('config', {}),
+            channel_name=data.get('channel_name') or data.get('name'),
+            status=data.get('status', 'disconnected'),
+            is_active=bool(data.get('is_active', True)),
+            created_at=data.get('created_at', ''),
+            connected_at=data.get('connected_at'),
+            route_to_agents=list(data.get('route_to_agents', []) or []),
+            default_agent=data.get('default_agent'),
+            rate_limit_per_minute=int(data.get('rate_limit_per_minute', 60)),
+            rate_limit_per_hour=int(data.get('rate_limit_per_hour', 1000)),
+            messages_received=int(data.get('messages_received', 0) or 0),
+            messages_sent=int(data.get('messages_sent', 0) or 0),
             last_message_at=data.get('last_message_at'),
-            message_count=data.get('message_count', 0),
-            error_message=data.get('error_message'),
+            last_error=data.get('last_error') or data.get('error_message'),
+            last_error_at=data.get('last_error_at'),
         )
 
 
@@ -1755,25 +1828,102 @@ class ChannelList:
         channels = [Channel.from_dict(c) for c in data.get('channels', [])]
         return cls(
             channels=channels,
-            total=data.get('total', len(channels)),
+            total=int(data.get('total', len(channels))),
         )
 
 
 @dataclass
 class AuthFlowResult:
-    """Result of initiating an OAuth/auth flow for a channel."""
-    channel_id: str
-    auth_url: str
-    expires_in: int = 600
-    state: str = ""
+    """
+    Result of initiating a channel auth flow.
+
+    Matches backend ``AuthFlowResponse``::
+
+        {
+          "auth_type": "oauth" | "qr_code" | "token",
+          "status":    "pending" | "authenticated" | "incomplete" | ...,
+          "data":      { ... provider-specific payload ... },
+          "message":   "human readable"
+        }
+
+    Provider-specific payloads in ``data``:
+        - OAuth (Slack/Teams/Google Chat): ``oauth_url`` (or ``auth_url``)
+        - QR (WhatsApp/Signal):            ``qr_payload`` and ``qr_image``
+        - Token:                           empty or ``{"missing_fields": [...]}``
+    """
+    auth_type: str
+    status: str
+    message: str
+    data: Dict[str, Any] = field(default_factory=dict)
+    channel_id: Optional[str] = None
+
+    # ── Convenience accessors (match the docstring in channels.py) ──
+    def _lookup(self, *keys: str) -> Optional[str]:
+        """Look up a key in either ``data`` or ``data['details']``.
+
+        ``POST /auth`` returns ``{auth_type, status, data: {...}}`` but
+        ``GET /auth/status`` returns a flatter shape with a ``details``
+        sub-dict — accept both.
+        """
+        details = self.data.get('details') if isinstance(
+            self.data.get('details'), dict
+        ) else {}
+        for k in keys:
+            v = self.data.get(k) or details.get(k)
+            if v:
+                return v
+        return None
+
+    @property
+    def oauth_url(self) -> Optional[str]:
+        """OAuth redirect URL (Slack / Teams / Google Chat)."""
+        return self._lookup('oauth_url', 'auth_url')
+
+    # Older callers used ``auth_url`` directly on the result.
+    @property
+    def auth_url(self) -> Optional[str]:
+        return self.oauth_url
+
+    @property
+    def qr_code_data(self) -> Optional[str]:
+        """Raw QR payload string (e.g. WhatsApp pairing code)."""
+        return self._lookup('qr_payload', 'qr_code_data')
+
+    @property
+    def qr_image(self) -> Optional[str]:
+        """Base64-encoded PNG of the QR code (data URL), if provided."""
+        return self._lookup('qr_image')
+
+    @property
+    def missing_fields(self) -> List[str]:
+        """Credential fields the user still needs to supply (token auth)."""
+        return list(self.data.get('missing_fields', []) or [])
+
+    @property
+    def is_authenticated(self) -> bool:
+        return self.status == 'authenticated'
+
+    @property
+    def is_pending(self) -> bool:
+        return self.status == 'pending'
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'AuthFlowResult':
+        # Be lenient: some endpoints (auth/status) return a flatter shape
+        # without the outer ``data`` envelope; absorb the whole dict so
+        # ``.oauth_url`` / ``.qr_payload`` still resolve.
+        payload = data.get('data')
+        if not isinstance(payload, dict):
+            payload = {
+                k: v for k, v in data.items()
+                if k not in {'auth_type', 'status', 'message', 'channel_id'}
+            }
         return cls(
-            channel_id=data.get('channel_id', ''),
-            auth_url=data['auth_url'],
-            expires_in=data.get('expires_in', 600),
-            state=data.get('state', ''),
+            auth_type=data.get('auth_type', 'unknown'),
+            status=data.get('status', 'pending'),
+            message=data.get('message', ''),
+            data=payload,
+            channel_id=data.get('channel_id'),
         )
 
 
