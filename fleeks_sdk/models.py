@@ -2215,7 +2215,7 @@ class VoiceSessionConfig:
     agent_session_id: str
     voice_name: str = "Kore"
     language: str = "en"
-    model: str = "gemini-3.1-flash-live-preview"
+    model: Optional[str] = None  # backend resolves the platform default when omitted
     thinking_level: str = "minimal"
     enable_tools: bool = True
     workspace_id: Optional[str] = None

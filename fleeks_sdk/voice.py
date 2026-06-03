@@ -377,7 +377,7 @@ class VoiceManager:
         *,
         voice_name: str = "Kore",
         language: str = "en",
-        model: str = "gemini-3.1-flash-live-preview",
+        model: Optional[str] = None,
         thinking_level: str = "minimal",
         enable_tools: bool = True,
         workspace_id: Optional[str] = None,
@@ -392,7 +392,10 @@ class VoiceManager:
             agent_session_id: The agent session to attach voice to (required)
             voice_name: Voice to use — "Aoede", "Charon", "Fenrir", "Kore", "Puck"
             language: Language code (default: "en")
-            model: Gemini model (default: "gemini-3.1-flash-live-preview")
+            model: Gemini live model id. If ``None`` (default), the backend
+                picks the current platform default — model ids rotate and
+                should not be hardcoded by callers. Fetch ``GET /voice/config``
+                if you need the available list.
             thinking_level: "minimal", "low", "medium", or "high"
             enable_tools: Whether the agent can use tools during voice
             workspace_id: Optional workspace context
@@ -415,17 +418,19 @@ class VoiceManager:
         self._session_started_future = loop.create_future()
 
         # Emit voice_start
-        await self._sio.emit("voice_start", {
+        voice_start_payload: Dict[str, Any] = {
             "agent_session_id": agent_session_id,
             "voice_name": voice_name,
             "language": language,
-            "model": model,
             "thinking_level": thinking_level,
             "enable_tools": enable_tools,
             "workspace_id": workspace_id,
             "project_id": project_id,
             "system_instruction": system_instruction or "",
-        })
+        }
+        if model:
+            voice_start_payload["model"] = model
+        await self._sio.emit("voice_start", voice_start_payload)
 
         # Wait for voice_session_started
         try:

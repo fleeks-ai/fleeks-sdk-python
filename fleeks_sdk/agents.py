@@ -431,7 +431,7 @@ class AgentManager:
         prompt: str,
         description: str = "Sub-agent task",
         *,
-        model: str = "auto",
+        model: Optional[str] = None,
         parent_session_id: Optional[str] = None,
         context: Optional[Dict[str, Any]] = None,
         max_tokens: int = 16384,
@@ -455,7 +455,10 @@ class AgentManager:
                 Example: "Analyze this code and suggest performance improvements"
             description: Short label for logging/tracking (3-7 words).
                 Example: "Analyze code performance"
-            model: AI model to use ("auto" picks best available).
+            model: AI model id. If ``None`` (default), the backend resolves
+                the model from the user's preference or the platform default.
+                Only pass an explicit value to pin a specific model — model ids
+                change over time and should not be hardcoded by callers.
             parent_session_id: Optional ID to link with parent agent session.
             context: Optional context dictionary for the sub-agent.
                 Example: {"file_content": "...", "language": "python"}
@@ -491,7 +494,6 @@ class AgentManager:
             ...     prompt="Review this code for security issues",
             ...     description="Security review",
             ...     context={"code": open("api.py").read()},
-            ...     model="auto",
             ... )
             >>> if result.is_error:
             ...     print(f"Error: {result.error}")
@@ -502,11 +504,12 @@ class AgentManager:
         data: Dict[str, Any] = {
             'prompt': prompt,
             'description': description,
-            'model': model,
             'max_tokens': max_tokens,
             'max_iterations': max_iterations,
             'temperature': temperature,
         }
+        if model:
+            data['model'] = model
         if parent_session_id:
             data['parent_session_id'] = parent_session_id
         if context:
